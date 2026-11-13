@@ -6,7 +6,7 @@
 <title>ตารางเข้า Office</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Prompt:wght@500;600&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -263,7 +263,7 @@ pre.code{background:var(--surface-2);border:1px solid var(--line);border-radius:
 //  ตั้งค่า Firebase: วางค่าจาก Firebase Console > Project settings > Your apps
 //  (ดูคู่มือ ขั้นที่ 4) ถ้าปล่อยว่าง หน้าเว็บจะทำงานแบบทดลองในเครื่องเท่านั้น
 // ======================================================================
-const FIREBASE_CONFIG = {
+const firebaseConfig = {
   apiKey: "AIzaSyC1M9xlUd2bBil8B2DydPf00ay1UXCpkhc",
   authDomain: "office-rota-7f8e1.firebaseapp.com",
   projectId: "office-rota-7f8e1",
@@ -416,7 +416,8 @@ function localStore() {
 }
 
 /* ---------- schedule engine ---------- */
-function holidayMap(cfg) { const m = {}; (cfg?.holidays || []).forEach(h => m[h.date] = h.name); return m; }
+const isISODate = d => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ''));
+function holidayMap(cfg) { const m = {}; (cfg?.holidays || []).forEach(h => { if (isISODate(h.date)) m[h.date] = h.name; }); return m; } // ข้ามวันที่ผิดรูปแบบ (กันข้อมูลแปลกปลอม)
 function weekdays() { const out = []; for (let m = 0; m < 12; m++) { const n = new Date(Date.UTC(YEAR, m+1, 0)).getUTCDate(); for (let d = 1; d <= n; d++) { const s = iso(YEAR,m,d), w = dowOf(s); if (w >= 1 && w <= 5) out.push(s); } } return out; }
 function generatePattern(holidays) {
   const hol = new Set(holidays.map(h => h.date)); const p = {}; let i = 0;
@@ -1041,10 +1042,10 @@ function holEditor(list, ed, gen) {
   const rows = list.map((h, i) => ({ h, i })).filter(({ h }) => mf === 'all' || !h.date || +h.date.slice(5, 7) - 1 === +mf)
     .sort((x, y) => (x.h.date || '9').localeCompare(y.h.date || '9'));
   const dates = list.map(h => h.date);
-  const wd = d => { if (!d) return '<span class="muted small">เลือกวันที่</span>'; const w = dowOf(d); return `${TH_D[w]} <span class="num">${dmy(d)}</span>` +(w === 0 || w === 6 ? ' <span class="st">เสาร์–อาทิตย์ ไม่มีผล</span>' : '') + (dates.filter(x => x === d).length > 1 ? ' <span class="st" style="color:var(--danger)">ซ้ำ</span>' : ''); };
+  const wd = d => { if (!d) return '<span class="muted small">เลือกวันที่</span>'; const w = dowOf(d); return `${esc(TH_D[w] ?? '')} <span class="num">${esc(dmy(d))}</span>` +(w === 0 || w === 6 ? ' <span class="st">เสาร์–อาทิตย์ ไม่มีผล</span>' : '') + (dates.filter(x => x === d).length > 1 ? ' <span class="st" style="color:var(--danger)">ซ้ำ</span>' : ''); };
   const body = rows.map(({ h, i }) => ed
     ? `<tr><td class="l"><input type="date" id="h-date-${i}" data-hi="${i}" data-hf="date" value="${esc(h.date)}" min="${YEAR}-01-01" max="${YEAR}-12-31" aria-label="วันที่"></td><td class="l">${wd(h.date)}</td><td class="l"><input type="text" id="h-name-${i}" data-hi="${i}" data-hf="name" value="${esc(h.name)}" aria-label="ชื่อวันหยุด" style="width:100%;min-width:160px"></td><td><button class="iconbtn" data-act="delHol" data-hi="${i}" aria-label="ลบวันหยุด">${ic('x')}</button></td></tr>`
-    : `<tr><td class="l num">${dmy(h.date)}</td><td class="l">${TH_D[dowOf(h.date)]}</td><td class="l">${esc(h.name)}</td><td></td></tr>`).join('');
+    : `<tr><td class="l num">${esc(dmy(h.date))}</td><td class="l">${esc(TH_D[dowOf(h.date)] ?? '')}</td><td class="l">${esc(h.name)}</td><td></td></tr>`).join('');
   const nWeek = list.filter(h => h.date && dowOf(h.date) >= 1 && dowOf(h.date) <= 5).length;
   return `<div class="row" style="margin-bottom:10px">
       <label for="holMonth" class="small muted">เดือน · Month</label>
