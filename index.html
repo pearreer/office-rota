@@ -1,0 +1,1466 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ตารางเข้า Office</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Prompt:wght@500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+/* Layout: sticky header with tabs → one working view at a time (calendar board, dashboards, guide, history, settings). Batch A = teal, Batch B = apricot, swaps = lavender. */
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --surface-2:#F7F9FA; --line:#DCE3E8;
+  --ink:#1F2B35; --ink-muted:#55636F; --primary-deep:#173F45;
+  --a-soft:#D3ECE8; --a-deep:#1C5A52; --a-bar:#6DB2A8;
+  --b-soft:#F8E1CB; --b-deep:#83461A; --b-bar:#E2A46F;
+  --s-soft:#E4DEF6; --s-deep:#4A3C82; --s-line:#9D8FD6;
+  --hol:#EEF0F2; --hol-ink:#6A5560;
+  --me-soft:#DCEBFB; --me-deep:#0B4A94; --me-line:#1F6FD1;
+  --warn-soft:#FFF1C7; --warn-deep:#7A4A00; --warn-line:#E0A100; --warn-strong:#B26A00;
+  --focus:#2B7A71; --danger:#A23B3B;
+  --font-d:"Prompt","Leelawadee UI",Tahoma,sans-serif;
+  --font-b:"IBM Plex Sans Thai","Leelawadee UI",Tahoma,sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12191E; --surface:#1A232A; --surface-2:#1F2A32; --line:#2E3C46;
+  --ink:#E4ECF0; --ink-muted:#9DAEBA; --primary-deep:#A8DDD5;
+  --a-soft:#1E3B38; --a-deep:#9FDCD2; --a-bar:#4F978D;
+  --b-soft:#3F2E20; --b-deep:#F3C49D; --b-bar:#B97B47;
+  --s-soft:#2C2746; --s-deep:#CBC0F2; --s-line:#7D6FC0;
+  --hol:#20282E; --hol-ink:#D3B5C2; --me-soft:#16304F; --me-deep:#A9CEF7; --me-line:#4C93E6; --warn-soft:#3A2C08; --warn-deep:#FFD873; --warn-line:#E0A100; --warn-strong:#FFC94A; --focus:#7FCFC3; --danger:#F09A9A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12191E; --surface:#1A232A; --surface-2:#1F2A32; --line:#2E3C46;
+  --ink:#E4ECF0; --ink-muted:#9DAEBA; --primary-deep:#A8DDD5;
+  --a-soft:#1E3B38; --a-deep:#9FDCD2; --a-bar:#4F978D;
+  --b-soft:#3F2E20; --b-deep:#F3C49D; --b-bar:#B97B47;
+  --s-soft:#2C2746; --s-deep:#CBC0F2; --s-line:#7D6FC0;
+  --hol:#20282E; --hol-ink:#D3B5C2; --me-soft:#16304F; --me-deep:#A9CEF7; --me-line:#4C93E6; --warn-soft:#3A2C08; --warn-deep:#FFD873; --warn-line:#E0A100; --warn-strong:#FFC94A; --focus:#7FCFC3; --danger:#F09A9A; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-b);font-size:15px;line-height:1.55}
+h1,h2,h3{font-family:var(--font-d);color:var(--primary-deep);text-wrap:balance;margin:0;font-weight:600}
+h1{font-size:26px} h2{font-size:21px} h3{font-size:17px}
+.en{color:var(--ink-muted);font-weight:400;font-size:.8em;font-family:var(--font-b)}
+.muted{color:var(--ink-muted)} .small{font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:middle}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.topbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-block:12px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.badge-ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--a-soft);color:var(--a-deep);flex:none}
+.brand p{margin:0;font-size:13px;color:var(--ink-muted)}
+.spacer{flex:1}
+.who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;max-width:100%}
+#meSel{max-width:100%;min-width:0}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:13px;color:var(--ink-muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--a-bar)}
+select,input[type=text],input[type=search],input[type=date],input[type=password],textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:38px}
+textarea{width:100%;min-height:180px;font-size:14px;font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:thin}
+nav.tabs button{font:inherit;font-size:14px;background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px;color:var(--ink-muted);cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+nav.tabs button[aria-selected=true]{color:var(--primary-deep);border-bottom-color:var(--a-bar);font-weight:600}
+.btn{font:inherit;font-size:14px;display:inline-flex;align-items:center;gap:6px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 14px;min-height:38px;cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--primary-deep);color:var(--surface);border-color:var(--primary-deep)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+main{padding-block:20px 120px}
+.view{display:grid;gap:18px;grid-template-columns:minmax(0,1fr)}
+.view>*{min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.sec-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sec-h .badge-ic{width:34px;height:34px}
+.sec-h .badge-ic svg{width:18px;height:18px}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.month-nav{display:flex;align-items:center;gap:6px}
+.month-nav h2{min-width:190px;text-align:center}
+#monthSel{font-family:var(--font-d);font-size:18px;font-weight:600;color:var(--primary-deep);min-width:200px;cursor:pointer}
+.iconbtn{width:38px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer}
+.legend{display:flex;flex-wrap:wrap;gap:8px}
+.lg{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-muted)}
+.sw{width:14px;height:14px;border-radius:4px;border:1px solid var(--line)}
+.sw.a{background:var(--a-soft)} .sw.b{background:var(--b-soft)} .sw.s{background:var(--s-soft);border-color:var(--s-line)} .sw.h{background:var(--hol)}
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.cal-sticky{position:sticky;top:calc(var(--hdr,0px) + env(safe-area-inset-top,0px));z-index:15;background:var(--bg);display:grid;gap:8px;padding-block:6px 8px;margin-top:-6px}
+.cal-bar{padding:12px 16px;box-shadow:0 2px 8px color-mix(in srgb,var(--ink) 8%,transparent)}
+.cal-head{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.cal-head .dow{font-size:13px;font-weight:600;color:var(--ink-muted);padding:0 4px}
+.fz1,.fz2{position:sticky;background:var(--surface);z-index:1}
+.fz1{left:0;min-width:84px;max-width:84px}
+.fz2{left:84px;box-shadow:1px 0 0 var(--line)}
+th{z-index:2} th.fz1,th.fz2{z-index:3;background:var(--surface-2)}
+tfoot td.fz1,tfoot td.fz2{background:var(--surface-2)}
+.day{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px;min-height:120px;display:flex;flex-direction:column;gap:6px;min-width:0;transition:box-shadow .15s}
+.day.pad{background:transparent;border:1px dashed var(--line);opacity:.5}
+.day.today{box-shadow:0 0 0 2px var(--a-bar)}
+.day.drop{box-shadow:0 0 0 2px var(--s-line);background:var(--s-soft)}
+.day.target{cursor:copy}
+.day.locked .chip{cursor:default}
+.day.locked{background:color-mix(in srgb,var(--surface) 70%,var(--bg))}
+.cal.ro .day:not(.pad){background:var(--surface-2);border:1px dashed color-mix(in srgb,var(--ink-muted) 45%,var(--line))}
+.cal.ro .day:not(.pad) .chip{filter:grayscale(1);opacity:.72;box-shadow:none}
+.cal.ro .day:not(.pad) .chip.mine{opacity:.9}
+.cal.ro .tag{filter:grayscale(1);opacity:.8}
+.cal.ro .dnum,.cal.ro .dnum .dw{color:var(--ink-muted)}
+.cal.ro .day.hol{opacity:.75}
+.cal-bar.ro{background:var(--surface-2);border-color:color-mix(in srgb,var(--ink-muted) 45%,var(--line));border-style:dashed}
+.robar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-radius:var(--r);background:var(--warn-soft);color:var(--warn-deep);border:2px solid var(--warn-line);border-left-width:6px;font-size:14px;font-weight:500;box-shadow:0 2px 8px color-mix(in srgb,var(--warn-line) 25%,transparent)}
+.robar svg.i{color:var(--warn-strong);width:22px;height:22px}
+.robar b{font-family:var(--font-d);font-size:15px}
+.robar .btn{border-color:var(--warn-line)}
+.pill.ro{background:var(--warn-soft);color:var(--warn-deep);border:2px solid var(--warn-line);font-weight:700}
+.fwrap{display:flex;flex-direction:column;gap:4px;min-width:0;max-width:100%}
+.fwrap input{width:100%}
+#filter[aria-invalid=true]{border:2px solid var(--danger)}
+.ferr{margin:0;font-size:13px;font-weight:600;color:var(--danger);display:flex;align-items:center;gap:4px}
+.ferr svg.i{width:14px;height:14px}
+.pill.adm{background:var(--me-soft);color:var(--me-deep);border:2px solid var(--me-line);font-weight:700}
+.perm-list{margin:0;padding-left:20px;display:grid;gap:6px}
+.perm-list b{color:var(--ink)}
+.perms{display:flex;flex-wrap:wrap;gap:6px 14px;width:100%}
+.perms label{display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;min-height:32px}
+.perms input{width:18px;height:18px;accent-color:var(--me-line)}
+.pill.ro svg.i{color:var(--warn-strong);width:16px;height:16px}
+.day-h{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.dnum{font-family:var(--font-d);font-size:18px;color:var(--primary-deep)}
+.dnum .dw{display:none;font-family:var(--font-b);font-size:15px;color:var(--primary-deep)}
+.tag{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.tag.a{background:var(--a-soft);color:var(--a-deep)} .tag.b{background:var(--b-soft);color:var(--b-deep)}
+.day.hol{background:var(--hol);background-image:repeating-linear-gradient(135deg,transparent 0 8px,color-mix(in srgb,var(--line) 55%,transparent) 8px 9px)}
+.holname{font-size:13px;color:var(--hol-ink);font-weight:500}
+.chips{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+.chip{font:inherit;font-size:13px;line-height:1.3;text-align:left;border-radius:7px;border:1px solid transparent;padding:3px 7px;cursor:pointer;max-width:100%;display:flex;flex-direction:column;min-width:0}
+.chip .nm{white-space:normal;overflow-wrap:break-word;min-width:0}
+.chip .cd{font-weight:600;margin-right:4px;font-variant-numeric:tabular-nums}
+.chip.a{background:var(--a-soft);color:var(--a-deep)} .chip.b{background:var(--b-soft);color:var(--b-deep)}
+.chip.sw{background:var(--s-soft);color:var(--s-deep);border-color:var(--s-line)}
+.chip .note{font-size:12px;display:flex;align-items:center;gap:3px;opacity:.95}
+.chip .note svg{width:12px;height:12px}
+.chip .mk svg{width:12px;height:12px;margin-right:3px;vertical-align:-1px}
+.chip.mine{background:var(--me-soft);color:var(--me-deep);font-weight:600;border:2px solid var(--me-line);box-shadow:0 2px 6px color-mix(in srgb,var(--me-line) 35%,transparent)}
+.chip.mine .nm{display:flex;align-items:center;flex-wrap:wrap;column-gap:2px;white-space:normal}
+.chip.mine .nm::after{content:"ฉัน · me";margin-left:auto;padding-left:8px;font-size:12px;font-weight:600;opacity:.9}
+.chip.mine.dim{opacity:1}
+.chip.sel{outline:3px solid var(--focus);outline-offset:1px;transform:translateY(-1px)}
+.chip.dim{opacity:.28}
+.chip.leave{background:var(--surface-2);color:var(--ink-muted);border:1px dashed var(--line);cursor:default}
+.chip.leave.mine{cursor:pointer;border:2px dashed var(--me-line);background:var(--surface-2)}
+.chip.leave .cd,.chip.leave .fn{text-decoration:line-through}
+.lv{display:inline-block;font-size:11px;font-weight:600;padding:0 6px;border-radius:999px;background:var(--danger);color:var(--surface);margin-left:4px;text-decoration:none;vertical-align:1px}
+.wfh-lv{font-size:12px;color:var(--ink-muted);display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.wfh-lv .chip{font-size:12px}
+.count{font-size:12px;color:var(--ink-muted)}
+@media (max-width:760px){
+  .cal{grid-template-columns:1fr} .cal-head,.day.pad{display:none} .cal-sticky{position:static;margin-top:0}
+  .day{min-height:0} .dnum .dw{display:inline} .dnum .dn{display:none}
+  .month-nav h2{min-width:0;font-size:19px}
+}
+/* action bar + modal + toast */
+.actionbar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:2px solid var(--s-line);display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:center}
+.actionbar p{margin:0;max-width:760px}
+.overlay{position:fixed;inset:0;z-index:40;background:color-mix(in srgb,#0b1216 45%,transparent);display:grid;place-items:center;padding:16px}
+.modal{background:var(--surface);border-radius:14px;border:1px solid var(--line);max-width:520px;width:100%;padding:22px;display:grid;gap:14px;max-height:90vh;overflow:auto}
+.swapviz{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+.swapviz .side{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px;min-width:0}
+.swapviz .side b{display:block;font-family:var(--font-d);color:var(--primary-deep)}
+.swapviz .arrow{color:var(--s-deep)}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.toast{position:fixed;top:calc(80px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:50;background:var(--primary-deep);color:var(--surface);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px)}
+/* dashboards */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+.kpi .v{font-family:var(--font-d);font-size:28px;color:var(--ink);line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:13px;color:var(--ink-muted)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{background:var(--surface-2);color:var(--primary-deep);font-weight:600;position:sticky;top:0}
+td.l,th.l{text-align:left}
+tr:last-child td{border-bottom:0}
+tfoot td{font-weight:600;background:var(--surface-2)}
+.heat{border-radius:4px}
+.sortb{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.sortb:hover{text-decoration:underline}
+.sortb .ar{font-size:11px;opacity:.35}
+th[aria-sort] .sortb .ar{opacity:1}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--ink-muted);font-family:var(--font-b);font-size:13px}
+.chart .val{fill:var(--ink);font-size:12px}
+.board{display:grid;grid-template-columns:40px max-content minmax(60px,1fr) 50px;gap:8px 10px}
+.rank{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:center}
+.rank .no{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);font-family:var(--font-d);color:var(--ink-muted)}
+.rank .no.top{background:var(--s-soft);color:var(--s-deep)}
+.rank .no.r1{background:#FBEFC4;color:#8A6400;box-shadow:inset 0 0 0 2px #E2B93B}
+.rank .no.r2{background:#ECEFF3;color:#56606B;box-shadow:inset 0 0 0 2px #A7B0BA}
+.rank .no.r3{background:#F6E2D3;color:#8A4B20;box-shadow:inset 0 0 0 2px #C9875A}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .rank .no.r1{background:#3D3315;color:#F2CF63}:root:not([data-theme="light"]) .rank .no.r2{background:#2C3239;color:#D2D8DF}:root:not([data-theme="light"]) .rank .no.r3{background:#3B2A1E;color:#E7A97C}}
+:root[data-theme="dark"] .rank .no.r1{background:#3D3315;color:#F2CF63} :root[data-theme="dark"] .rank .no.r2{background:#2C3239;color:#D2D8DF} :root[data-theme="dark"] .rank .no.r3{background:#3B2A1E;color:#E7A97C}
+.rank .bar{height:14px;border-radius:7px;background:var(--s-line)}
+.rank .bar.r1{background:#E2B93B} .rank .bar.r2{background:#A7B0BA} .rank .bar.r3{background:#C9875A}
+.rank .nm{white-space:nowrap}
+@media (max-width:600px){.board{grid-template-columns:36px minmax(0,1fr) 44px}.rank .barw{display:none}.rank .nm{white-space:normal;overflow-wrap:break-word}}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:14px;border:0;background:var(--surface);color:var(--ink-muted);padding:7px 12px;cursor:pointer}
+.seg button{display:inline-flex;align-items:center;gap:5px}
+.seg button svg.i{width:16px;height:16px}
+.seg button[aria-pressed=true]{background:var(--a-soft);color:var(--a-deep);font-weight:600}
+/* guide */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px;counter-reset:s}
+.steps>*,.step>*{min-width:0}
+.step h3{overflow-wrap:anywhere}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:8px;align-content:start}
+.step .n{width:34px;height:34px;border-radius:50%;background:var(--s-soft);color:var(--s-deep);display:grid;place-items:center;font-family:var(--font-d);font-size:17px}
+.mini .chip{max-width:100%} .mini .chip .nm{white-space:normal}
+.mini{display:flex;flex-wrap:wrap;gap:4px;min-width:0;padding:8px;border-radius:8px;background:var(--surface-2);border:1px dashed var(--line)}
+pre.code{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto;font-size:13.5px;margin:0;font-family:ui-monospace,Consolas,monospace}
+/* history */
+.hist{display:grid;gap:8px}
+.hrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.hrow.undone{opacity:.55}
+.hrow .txt{flex:1;min-width:220px}
+.st{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-muted)}
+.st.ok{background:var(--s-soft);color:var(--s-deep)}
+.empty{text-align:center;padding:40px 16px;display:grid;gap:10px;justify-items:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+.grid2>*{min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ok-line{color:var(--a-deep);font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div><h1 style="font-size:22px">ตารางเข้า Office <span id="yrTxt" class="num">2027</span></h1></div>
+      </div>
+      <div class="spacer"></div>
+      <div class="who">
+        <span class="pill" id="online"><span class="dot"></span><span id="onlineTxt">ออฟไลน์ · local</span></span>
+        <label for="meSel" class="small muted">ฉันคือ · I am</label>
+        <select id="meSel" aria-label="เลือกชื่อของคุณ"></select>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs"></nav>
+  </div>
+</header>
+<main class="wrap"><div id="app" class="view"></div></main>
+<div id="bar"></div><div id="modal"></div><div id="toast"></div>
+
+<script>
+// ======================================================================
+//  ตั้งค่า Firebase: วางค่าจาก Firebase Console > Project settings > Your apps
+//  (ดูคู่มือ ขั้นที่ 4) ถ้าปล่อยว่าง หน้าเว็บจะทำงานแบบทดลองในเครื่องเท่านั้น
+// ======================================================================
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC1M9xlUd2bBil8B2DydPf00ay1UXCpkhc",
+  authDomain: "office-rota-7f8e1.firebaseapp.com",
+  projectId: "office-rota-7f8e1",
+  storageBucket: "office-rota-7f8e1.firebasestorage.app",
+  messagingSenderId: "538857909961",
+  appId: "1:538857909961:web:430137ff08195c271e6718"
+};
+(() => {
+const LEGACY_YEAR = 2027; // ตารางปีแรกเก็บที่ setup/main ปีอื่นเก็บที่ setup/y<ปี>
+const YEAR_MIN = 2025, YEAR_MAX = 2035;
+let YEAR = (() => { const y = +lsGet0('rota.year'); return y >= YEAR_MIN && y <= YEAR_MAX ? y : LEGACY_YEAR; })();
+function lsGet0(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+const cfgPath = y => y === LEGACY_YEAR ? 'setup/main' : 'setup/y' + y;
+const yearOfDoc = (id, d) => id === 'main' ? (+d?.year || LEGACY_YEAR) : +String(id).replace(/^y/, '');
+const chYear = c => +c.year || LEGACY_YEAR;
+const TH_M = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const TH_MS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const EN_M = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const TH_D = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+const DOW_FULL = ['จันทร์ · Mon','อังคาร · Tue','พุธ · Wed','พฤหัสบดี · Thu','ศุกร์ · Fri'];
+
+// วันหยุดราชการ 2570 (ปีแรก) ที่ตรงกับวันจันทร์–ศุกร์ (รวมวันหยุดชดเชย) — แก้ไขได้ในหน้า ตั้งค่า
+const DEFAULT_HOLIDAYS = [
+ ['2027-01-01','วันขึ้นปีใหม่'],['2027-02-22','ชดเชยวันมาฆบูชา'],['2027-04-06','วันจักรี'],
+ ['2027-04-13','วันสงกรานต์'],['2027-04-14','วันสงกรานต์'],['2027-04-15','วันสงกรานต์'],
+ ['2027-05-03','ชดเชยวันแรงงาน'],['2027-05-04','วันฉัตรมงคล'],['2027-05-20','วันวิสาขบูชา'],
+ ['2027-06-03','วันเฉลิมพระชนมพรรษาพระราชินี'],['2027-07-19','วันเข้าพรรษา'],['2027-07-20','ชดเชยวันอาสาฬหบูชา'],
+ ['2027-07-28','วันเฉลิมพระชนมพรรษา ร.10'],['2027-08-12','วันแม่แห่งชาติ'],['2027-10-13','วันนวมินทรมหาราช'],
+ ['2027-10-25','ชดเชยวันปิยมหาราช'],['2027-12-06','ชดเชยวันพ่อแห่งชาติ'],['2027-12-10','วันรัฐธรรมนูญ'],['2027-12-31','วันสิ้นปี']
+];
+// ปีอื่น: ใส่วันหยุดวันที่ตายตัว + ชดเชยเมื่อตรงเสาร์–อาทิตย์ (วันพระทางจันทรคติ เช่น มาฆะ/วิสาขะ/อาสาฬหะ/เข้าพรรษา ต้องเพิ่มเองตามประกาศ ครม.)
+const FIXED_HOL = [['01-01','วันขึ้นปีใหม่'],['04-06','วันจักรี'],['04-13','วันสงกรานต์'],['04-14','วันสงกรานต์'],['04-15','วันสงกรานต์'],['05-01','วันแรงงาน'],['05-04','วันฉัตรมงคล'],['06-03','วันเฉลิมพระชนมพรรษาพระราชินี'],['07-28','วันเฉลิมพระชนมพรรษา ร.10'],['08-12','วันแม่แห่งชาติ'],['10-13','วันนวมินทรมหาราช'],['10-23','วันปิยมหาราช'],['12-05','วันพ่อแห่งชาติ'],['12-10','วันรัฐธรรมนูญ'],['12-31','วันสิ้นปี']];
+function defaultHolidays(y) {
+  if (y === LEGACY_YEAR) return DEFAULT_HOLIDAYS.map(([date,name]) => ({date,name}));
+  const taken = new Set(FIXED_HOL.map(([md]) => `${y}-${md}`)), out = [];
+  FIXED_HOL.forEach(([md, name]) => {
+    const d = `${y}-${md}`, w = new Date(d+'T00:00:00Z').getUTCDay();
+    if (w >= 1 && w <= 5) { out.push({date: d, name}); return; }
+    const t = new Date(d+'T00:00:00Z');
+    do { t.setUTCDate(t.getUTCDate() + 1); } while ([0,6].includes(t.getUTCDay()) || taken.has(t.toISOString().slice(0,10)));
+    const s = t.toISOString().slice(0,10); taken.add(s);
+    if (s.startsWith(y + '-')) out.push({date: s, name: 'ชดเชย' + name});
+  });
+  return out.sort((a,b) => a.date.localeCompare(b.date));
+}
+const EXAMPLE_ROSTER = `รหัส,ชื่อ-นามสกุล,batch
+EX001,ตัวอย่าง กนกวรรณ,A
+EX002,ตัวอย่าง ชยพล,B
+EX003,ตัวอย่าง ณัฐธิดา,A
+EX004,ตัวอย่าง ธนากร,B
+EX005,ตัวอย่าง ปิยะพร,A
+EX006,ตัวอย่าง พงศกร,B
+EX007,ตัวอย่าง วรรณิศา,A
+EX008,ตัวอย่าง ศุภชัย,B`;
+
+const IC = {
+ cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+ chart:'<path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/>',
+ users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+ swap:'<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+ undo:'<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>',
+ dl:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+ up:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+ set:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+ book:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+ trophy:'<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+ clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+ left:'<path d="m15 18-6-6 6-6"/>', right:'<path d="m9 18 6-6-6-6"/>',
+ x:'<path d="M18 6 6 18M6 6l12 12"/>', arrow:'<path d="M5 12h14M13 5l7 7-7 7"/>',
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+ wand:'<path d="m15 4 5 5L9 20H4v-5z"/>', sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+ hand:'<path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',
+ shield:'<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/><path d="M9 12l2 2 4-4"/>',
+ lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+ eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+ leave:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 15l6 0"/>'
+};
+const ic = (n, cls='i') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]}</svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const iso = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
+const dowOf = s => new Date(s+'T00:00:00Z').getUTCDay();
+const localDate = t => { const d = new Date(t); return iso(d.getFullYear(), d.getMonth(), d.getDate()); };
+const todayISO = () => localDate(Date.now());
+const dmy = s => { const [y,m,d] = String(s).split('-'); return `${d}/${m}/${y}`; };
+const fmtDay = s => `${TH_D[dowOf(s)]} ${dmy(s)}`;
+const fmtTime = t => { const d = new Date(t); return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const byCode = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true });
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+const lsSet = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+/* ---------- state ---------- */
+const S = {
+  cfg: null, cfgs: {}, cfgLoaded: false, changes: [], leaves: [], pins: {}, admins: null, lv: new Map(), year: YEAR, tab: lsGet('rota.tab') || 'cal',
+  month: (new Date().getFullYear() === YEAR ? new Date().getMonth() : 0),
+  me: { id: null, code: lsGet('rota.me') || '' }, canWrite: true, isAdmin: true,
+  sel: null, filter: '', personBatch: 'all', histView: lsGet('rota.hist') === 'leave' ? 'leave' : 'swap', psort: lsGet('rota.psort') || {k: 'code', dir: 1}, live: false, peers: 0, dl: null, sched: null,
+  rosterDraft: null, draftHol: null, editMode: false, adminOk: false, importNote: '', holMonth: 'all'
+};
+let store, user = null, room = null, confirmReset = null;
+
+/* ---------- stores: live (Firebase Firestore) or local fallback ---------- */
+const BACKUP_COLS = ['setup', 'changes', 'leaves', 'pins', 'roles'];
+function dbStore(db) {
+  const err = e => { toast('การเชื่อมต่อข้อมูลมีปัญหา: ' + (e?.code || 'unavailable')); };
+  return {
+    onCfgs: cb => db.collection('setup').onSnapshot(q => { const m = {}; q.docs.forEach(d => { const v = d.data(), y = yearOfDoc(d.id, v); if (y) m[y] = v; }); cb(m); }, err),
+    onChanges: cb => db.collection('changes').orderBy('createdAt', 'desc').limit(1000).onSnapshot(q => cb(q.docs.map(d => ({...d.data(), id: d.id}))), err),
+    setCfg: d => db.doc(cfgPath(YEAR)).set({ ...d, year: YEAR }),
+    updateCfg: p => db.doc(cfgPath(YEAR)).update(p),
+    addChange: d => db.collection('changes').add(d),
+    updateChange: (id, p) => db.doc('changes/' + id).update(p),
+    onLeaves: cb => db.collection('leaves').orderBy('createdAt', 'desc').limit(1000).onSnapshot(q => cb(q.docs.map(d => ({...d.data(), id: d.id}))), err),
+    setLeave: (id, d) => db.doc('leaves/' + id).set(d),
+    updateLeave: (id, p) => db.doc('leaves/' + id).update(p),
+    onPins: cb => db.collection('pins').onSnapshot(q => { const m = {}; q.docs.forEach(d => m[d.id] = d.data()); cb(m); }, err),
+    setPin: (id, d) => db.doc('pins/' + id).set(d),
+    onAdmins: cb => db.doc('roles/admins').onSnapshot(d => cb(d.exists ? d.data() : null), err),
+    setAdmins: d => db.doc('roles/admins').set(d),
+    dump: async () => { const out = {}; for (const c of BACKUP_COLS) { const q = await db.collection(c).get(); out[c] = {}; q.docs.forEach(d => out[c][d.id] = d.data()); } return out; },
+    restore: async cols => { const all = []; BACKUP_COLS.forEach(c => Object.entries(cols[c] || {}).forEach(([id, v]) => all.push([c + '/' + id, v])));
+      for (let i = 0; i < all.length; i += 400) { const b = db.batch(); all.slice(i, i + 400).forEach(([p, v]) => b.set(db.doc(p), v)); await b.commit(); } return all.length; }
+  };
+}
+function localStore() {
+  let cfgs = lsGet('rota.local.cfgs') || {}, ch = lsGet('rota.local.changes') || [], lvs = lsGet('rota.local.leaves') || [], pins = lsGet('rota.local.pins') || {}, adm = lsGet('rota.local.admins');
+  const old = lsGet('rota.local.cfg'); if (old && !cfgs[LEGACY_YEAR]) cfgs[LEGACY_YEAR] = old;
+  const cl = [], hl = [], ll = [], pl = [], al = [];
+  const emit = () => { lsSet('rota.local.cfgs', cfgs); lsSet('rota.local.changes', ch); lsSet('rota.local.leaves', lvs); lsSet('rota.local.pins', pins); lsSet('rota.local.admins', adm); al.forEach(f => f(adm)); cl.forEach(f => f(cfgs)); hl.forEach(f => f(ch)); ll.forEach(f => f(lvs)); pl.forEach(f => f(pins)); };
+  return {
+    onCfgs: cb => { cl.push(cb); setTimeout(() => cb(cfgs)); },
+    onChanges: cb => { hl.push(cb); setTimeout(() => cb(ch)); },
+    setCfg: async d => { cfgs = {...cfgs, [YEAR]: JSON.parse(JSON.stringify({ ...d, year: YEAR }))}; emit(); },
+    updateCfg: async p => { cfgs = {...cfgs, [YEAR]: {...cfgs[YEAR], ...JSON.parse(JSON.stringify(p))}}; emit(); },
+    addChange: async d => { ch = [...ch, {...d, id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,6)}]; emit(); },
+    updateChange: async (id, p) => { ch = ch.map(c => c.id === id ? {...c, ...p} : c); emit(); },
+    onLeaves: cb => { ll.push(cb); setTimeout(() => cb(lvs)); },
+    setLeave: async (id, d) => { lvs = [...lvs.filter(l => l.id !== id), {...d, id}]; emit(); },
+    updateLeave: async (id, p) => { lvs = lvs.map(l => l.id === id ? {...l, ...p} : l); emit(); },
+    onPins: cb => { pl.push(cb); setTimeout(() => cb(pins)); },
+    setPin: async (id, d) => { pins = {...pins, [id]: d}; emit(); },
+    onAdmins: cb => { al.push(cb); setTimeout(() => cb(adm)); },
+    setAdmins: async d => { adm = JSON.parse(JSON.stringify(d)); emit(); },
+    dump: async () => ({ setup: Object.fromEntries(Object.entries(cfgs).map(([y, v]) => [+y === LEGACY_YEAR ? 'main' : 'y' + y, v])), changes: Object.fromEntries(ch.map(({id, ...v}) => [id, v])), leaves: Object.fromEntries(lvs.map(({id, ...v}) => [id, v])), pins: {...pins}, roles: adm ? { admins: adm } : {} }),
+    restore: async cols => { let n = 0; const S2 = cols.setup || {}; cfgs = {}; Object.entries(S2).forEach(([id, v]) => { cfgs[yearOfDoc(id, v)] = v; n++; });
+      ch = Object.entries(cols.changes || {}).map(([id, v]) => ({...v, id})); lvs = Object.entries(cols.leaves || {}).map(([id, v]) => ({...v, id})); pins = {...(cols.pins || {})}; adm = cols.roles?.admins || null;
+      n += ch.length + lvs.length + Object.keys(pins).length + (adm ? 1 : 0); emit(); return n; }
+  };
+}
+
+/* ---------- schedule engine ---------- */
+function holidayMap(cfg) { const m = {}; (cfg?.holidays || []).forEach(h => m[h.date] = h.name); return m; }
+function weekdays() { const out = []; for (let m = 0; m < 12; m++) { const n = new Date(Date.UTC(YEAR, m+1, 0)).getUTCDate(); for (let d = 1; d <= n; d++) { const s = iso(YEAR,m,d), w = dowOf(s); if (w >= 1 && w <= 5) out.push(s); } } return out; }
+function generatePattern(holidays) {
+  const hol = new Set(holidays.map(h => h.date)); const p = {}; let i = 0;
+  weekdays().forEach(d => { if (!hol.has(d)) { p[d] = i % 2 === 0 ? 'A' : 'B'; i++; } });
+  return p;
+}
+function empMap() { const m = {}; (S.cfg?.employees || []).forEach(e => m[e.code] = e); return m; }
+function activeChanges() { const ep = S.cfg?.epoch || 0; return S.changes.filter(c => chYear(c) === YEAR && (c.epoch || 0) === ep).sort((a,b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : (a.id < b.id ? -1 : 1))); }
+function compute() {
+  const cfg = S.cfg; if (!cfg?.pattern) { S.sched = null; return; }
+  const hol = holidayMap(cfg), days = {}, applied = new Set();
+  const workdays = Object.keys(cfg.pattern).filter(d => !hol[d]).sort();
+  workdays.forEach(d => { const mp = new Map(); cfg.employees.forEach(e => { if (e.batch === cfg.pattern[d]) mp.set(e.code, null); }); days[d] = mp; });
+  activeChanges().forEach(c => {
+    if (c.undone) return;
+    const D1 = days[c.d1], D2 = days[c.d2];
+    if (c.type === 'swap') {
+      if (D1 && D2 && D1.has(c.a) && D2.has(c.b) && !D1.has(c.b) && !D2.has(c.a)) {
+        D1.delete(c.a); D2.delete(c.b);
+        D1.set(c.b, {type:'swap', for: c.a, id: c.id}); D2.set(c.a, {type:'swap', for: c.b, id: c.id});
+        applied.add(c.id);
+      }
+    } else if (c.type === 'move') {
+      if (D1 && D2 && D1.has(c.a) && !D2.has(c.a)) { D1.delete(c.a); D2.set(c.a, {type:'move', from: c.d1, id: c.id}); applied.add(c.id); }
+    }
+  });
+  S.sched = { days, workdays, applied, hol };
+  S.lv = new Map(); S.leaves.forEach(l => { if (!l.cancelled && +l.year === YEAR) S.lv.set(l.code + '|' + l.date, l); });
+}
+/* ---------- ล็อกเดือนย้อนหลัง: วันก่อนวันที่ 1 ของเดือนปัจจุบันแก้ไม่ได้ ---------- */
+const monthStart = () => todayISO().slice(0, 7) + '-01';
+const isPast = d => !!d && d < monthStart();
+const isLocked = d => isPast(d) && !can('pastMonths'); // admin ที่ได้สิทธิ แก้เดือนย้อนหลังได้
+const LOCK_MSG = 'เดือนย้อนหลังแก้ไขไม่ได้ · Past months are locked';
+/* ---------- leave (การลางาน) ---------- */
+const onLeave = (code, d) => S.lv.has(code + '|' + d);
+const leavesOn = d => [...S.lv.values()].filter(l => l.date === d);
+const leaveId = (code, d) => `${YEAR}_${String(code).replace(/[^A-Za-z0-9_-]/g, '-')}_${d}`;
+// ลาได้เฉพาะวันทำงาน (จ.–ศ. ที่ไม่ใช่วันหยุดนักขัตฤกษ์) ของปีที่เลือก
+function leaveBlock(code, d) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d || '')) return 'เลือกวันที่ก่อน';
+  if (+d.slice(0, 4) !== YEAR) return `เลือกวันในปี ${YEAR} (เปลี่ยนปีได้ที่แท็บ ตั้งค่า)`;
+  if (isLocked(d)) return `ลาไม่ได้: ${dmy(d)} อยู่ในเดือนย้อนหลัง (ลาได้ตั้งแต่ ${dmy(monthStart())})`;
+  const w = dowOf(d); if (w === 0 || w === 6) return 'ลาวันเสาร์–อาทิตย์ไม่ได้ (เป็นวันหยุดอยู่แล้ว)';
+  if (S.sched.hol[d]) return `ลาไม่ได้: ${dmy(d)} เป็นวันหยุด “${S.sched.hol[d]}”`;
+  if (!S.sched.days[d]) return 'วันนี้ไม่อยู่ในตาราง';
+  if (onLeave(code, d)) return `คุณลาวันที่ ${dmy(d)} ไว้แล้ว`;
+  return '';
+}
+const inOffice = (code, d) => !!S.sched.days[d]?.has(code);
+const canLeaveFor = code => !!code && (code === S.me.code || can('leaveOthers'));
+function askLeave(d, code = S.me.code) {
+  if (!canLeaveFor(code)) { toast('ลาได้เฉพาะของตัวเอง'); return; }
+  const why = leaveBlock(code, d); if (why) { toast(why); return; }
+  S.sel = null; render();
+  modal(`<h2>${ic('leave')} ยืนยันลางาน <span class="en">Confirm leave</span></h2>
+   <div class="swapviz" style="grid-template-columns:1fr"><div class="side"><span class="small muted">${esc(code)} ${esc(empName(code))}${code !== S.me.code ? ` · ลาแทนโดย admin ${esc(S.me.code)}` : ''}</span><b>${esc(fmtDay(d))}</b><span class="small">${inOffice(code, d) ? 'วันเข้า Office' : 'วันทำงานที่บ้าน (ไม่ได้เข้า Office)'}</span></div></div>
+   <p class="small muted" style="margin:0">วันที่ลา ชื่อของคุณจะแลกกะหรือย้ายวันไม่ได้ และไฟล์ Excel จะขึ้นว่า “ลา” ยกเลิกการลาได้ภายหลังโดยแตะชื่อตัวเองในวันนั้น หรือที่ปุ่ม “ลางาน”</p>
+   <div class="modal-actions"><button class="btn" data-close="1">ยกเลิก</button><button class="btn primary" data-leave-ok="${d}" data-leave-code="${esc(code)}">${ic('check')}ยืนยันลา</button></div>`);
+}
+async function takeLeave(d, code = S.me.code) {
+  if (!canLeaveFor(code)) { toast('ลาได้เฉพาะของตัวเอง'); return; }
+  const why = leaveBlock(code, d); if (why) { toast(why); return; }
+  modal('');
+  try { await store.setLeave(leaveId(code, d), { code, date: d, year: YEAR, by: S.me.id, byCode: S.me.code, createdAt: new Date().toISOString(), cancelled: false }); toast('บันทึกการลาแล้ว · Leave saved'); }
+  catch (e) { writeFail(e); }
+}
+function askCancelLeave(l) {
+  if (isLocked(l.date)) { toast(LOCK_MSG); return; }
+  modal(`<h2>${ic('undo')} ยกเลิกการลา? <span class="en">Cancel leave</span></h2>
+   <p style="margin:0"><b>${esc(l.code)} ${esc(empName(l.code))}</b> · ${esc(fmtDay(l.date))}</p>
+   <p class="small muted" style="margin:0">ชื่อจะกลับมาแลกกะได้ตามปกติ</p>
+   <div class="modal-actions"><button class="btn" data-close="1">ไม่ยกเลิก</button><button class="btn danger" data-leave-cancel="${esc(l.id)}">${ic('undo')}ยกเลิกการลา</button></div>`);
+}
+async function cancelLeave(id) {
+  const l = S.leaves.find(x => x.id === id); modal('');
+  if (!l || l.cancelled) return;
+  if (isLocked(l.date)) { toast(LOCK_MSG); return; }
+  if (!canLeaveFor(l.code)) { toast('ยกเลิกได้เฉพาะการลาของคุณเอง'); return; }
+  try { await store.updateLeave(id, { cancelled: true, cancelledAt: new Date().toISOString() }); toast('ยกเลิกการลาแล้ว · Leave cancelled'); }
+  catch (e) { writeFail(e); }
+}
+function leaveMenu() {
+  if (!guardWrite()) return;
+  const mine = [...S.lv.values()].filter(l => l.code === S.me.code).sort((a, b) => a.date.localeCompare(b.date));
+  const today = todayISO(), ms = monthStart(), def = today.startsWith(YEAR + '-') ? today : (`${YEAR}-01-01` < ms ? ms : `${YEAR}-01-01`), minD = `${YEAR}-01-01` < ms && !can('pastMonths') ? ms : `${YEAR}-01-01`;
+  modal(`<form id="leaveForm" novalidate style="display:grid;gap:14px"><h2>${ic('leave')} ลางาน <span class="en">Leave</span></h2>
+   <p class="small muted" style="margin:0">${esc(S.me.code)} ${esc(empName(S.me.code))} · ลาได้เฉพาะวันทำงาน จ.–ศ. ที่ไม่ใช่วันหยุด</p>
+   ${can('leaveOthers') ? `<div class="row"><label for="leaveWho" class="small muted">ลาให้ · For (admin)</label><select id="leaveWho">${[...(S.cfg?.employees || [])].sort((a, b) => String(a.batch).localeCompare(String(b.batch)) || byCode(a.code, b.code)).map(e => `<option value="${esc(e.code)}" ${e.code === S.me.code ? 'selected' : ''}>${esc(e.code)} · ${esc(e.name)} (${esc(e.batch)})</option>`).join('')}</select></div>` : ''}
+   <div class="row"><label for="leaveDate" class="small muted">วันที่ลา · Date</label><input type="date" id="leaveDate" min="${minD}" max="${YEAR}-12-31" value="${def}"><button type="submit" class="btn primary">${ic('check')}ลาวันที่เลือก</button></div>
+   <p id="leaveErr" class="small" style="margin:0;color:var(--danger)" hidden></p>
+   <div><h3 style="font-size:15px;margin-bottom:6px">การลาของคุณปี ${YEAR} <span class="en">${mine.length} วัน</span></h3>
+   ${mine.length ? `<div class="hist">${mine.map(l => `<div class="hrow"><span class="txt">${esc(fmtDay(l.date))}${inOffice(l.code, l.date) ? '' : ' <span class="small muted">(วันทำงานที่บ้าน)</span>'}</span>${isLocked(l.date) ? '<span class="st">ล็อก</span>' : `<button type="button" class="btn danger" data-leave-ask="${esc(l.id)}">${ic('undo')}ยกเลิกการลา</button>`}</div>`).join('')}</div>` : '<p class="small muted" style="margin:0">ยังไม่มีการลา</p>'}</div>
+   <div class="modal-actions"><button type="button" class="btn" data-close="1">ปิด</button></div></form>`);
+}
+const myChange = c => c.by === S.me.id || (!!c.byCode && c.byCode === S.me.code);
+function canUndo(c) {
+  if (c.undone || !S.sched?.applied.has(c.id)) return [false, ''];
+  const any = can('undoAny');
+  if (!myChange(c) && !any) return [false, 'ยกเลิกได้เฉพาะรายการของคุณ'];
+  if (isLocked(c.d1) || isLocked(c.d2)) return [false, LOCK_MSG];
+  const ppl = [c.a, c.b].filter(Boolean);
+  const later = activeChanges().some(x => !x.undone && x.createdAt > c.createdAt && S.sched.applied.has(x.id) && [x.a, x.b].some(p => ppl.includes(p)));
+  if (later) return [false, 'มีรายการใหม่กว่าของคนเดียวกัน ให้ยกเลิกรายการล่าสุดก่อน'];
+  return [true, ''];
+}
+
+/* ---------- ui helpers ---------- */
+let toastT;
+function toast(msg) { const el = document.getElementById('toast'); el.innerHTML = `<div class="toast" role="status">${esc(msg)}</div>`; clearTimeout(toastT); toastT = setTimeout(() => el.innerHTML = '', 3200); }
+function modal(html) { document.getElementById('modal').innerHTML = html ? `<div class="overlay" data-close="1"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>` : ''; }
+const empName = (code, em = empMap()) => em[code] ? em[code].name : code;
+const TABS = [
+  ['cal','ปฏิทิน','Calendar','cal'], ['batch','สรุปตาม Batch','By batch','chart'], ['person','สรุปรายบุคคล','By person','users'],
+  ['fun','แชมป์แลกกะ','Swap ranking','trophy'], ['guide','วิธีแลกกะ / ลา','How to','book'], ['hist','ประวัติ','History','clock'], ['set','ตั้งค่า','Settings','set']
+];
+// แท็บที่แสดงจริง: ไม่เปลี่ยน S.tab เผื่อสิทธิ admin ยังโหลดไม่เสร็จ
+function curTab() { return S.tab === 'admin' && !showAdminTab() ? 'cal' : S.tab; }
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = [...TABS, ...(showAdminTab() ? [['admin','Admin','','shield']] : [])].map(([k,th,en,i]) => `<button role="tab" aria-selected="${curTab()===k}" data-tab="${k}">${ic(i)}${th} <span class="en">${en}</span></button>`).join('');
+}
+function renderMe() {
+  const sel = document.getElementById('meSel'); const em = S.cfg?.employees || [];
+  sel.innerHTML = `<option value="">— เลือกชื่อ —</option>` + [...em].sort((a, b) => String(a.batch || '').localeCompare(String(b.batch || '')) || byCode(a.code, b.code)).map(e => `<option value="${esc(e.code)}" ${e.code===S.me.code?'selected':''}>${esc(e.code)} · ${esc(e.name)} (${esc(e.batch)})</option>`).join('');
+  document.getElementById('onlineTxt').textContent = S.live ? 'ออนไลน์ · live' : (S.offlineWhy || 'โหมดทดลองในเครื่อง · local');
+}
+function setHdr() { const h = document.querySelector('header.top'); if (h) document.documentElement.style.setProperty('--hdr', h.offsetHeight + 'px'); }
+addEventListener('resize', setHdr);
+function render() {
+  compute(); renderTabs(); renderMe(); setHdr();
+  const yt = document.getElementById('yrTxt'); if (yt) yt.textContent = `${YEAR+543} · ${YEAR}`; document.title = `ตารางเข้า Office ${YEAR}`;
+  const app = document.getElementById('app');
+  const views = {cal: vCal, batch: vBatch, person: vPerson, fun: vFun, guide: vGuide, hist: vHist, set: vSet, admin: vAdmin};
+  const tab = curTab();
+  app.innerHTML = !S.cfgLoaded ? `<div class="card empty"><p class="muted">กำลังโหลดตาราง… · Loading</p></div>` : views[tab]();
+  renderBar();
+}
+function needSetup() {
+  return `<div class="card empty">${ic('wand')}<h2>ยังไม่ได้สร้างตาราง <span class="en">Schedule not generated yet</span></h2>
+  <p class="muted" style="max-width:520px">${S.isAdmin ? 'ไปที่แท็บ ตั้งค่า เพื่อนำเข้ารายชื่อพนักงาน ตรวจวันหยุด แล้วให้ admin ที่มีสิทธิกด “สร้างตารางอัตโนมัติ” ในแท็บ Admin (ทำได้ครั้งเดียว)' : 'รอผู้ดูแลระบบนำเข้ารายชื่อและสร้างตารางก่อน'}</p>
+  ${S.isAdmin ? `<button class="btn primary" data-tab="set">${ic('set')}ไปหน้าตั้งค่า</button>` : ''}</div>`;
+}
+
+/* ---------- calendar view ---------- */
+function vCal() {
+  if (!S.sched) return needSetup();
+  const m = S.month, em = empMap(), f = S.filter.trim().toLowerCase(), sc = S.sched, today = todayISO();
+  const n = new Date(Date.UTC(YEAR, m+1, 0)).getUTCDate();
+  const cells = []; let first = true;
+  for (let d = 1; d <= n; d++) {
+    const s = iso(YEAR,m,d), w = dowOf(s); if (w < 1 || w > 5) continue;
+    if (first) { for (let k = 1; k < w; k++) cells.push('<div class="day pad" aria-hidden="true"></div>'); first = false; }
+    cells.push(dayCell(s, em, f, sc, today));
+  }
+  while ((cells.length) % 5) cells.push('<div class="day pad" aria-hidden="true"></div>');
+  const md = sc.workdays.filter(d => +d.slice(5,7) === m+1);
+  const past = `${YEAR}-${pad(m+1)}-01` < monthStart(), ro = past && !can('pastMonths');
+  const noHit = !!f && !(S.cfg.employees || []).some(e => String(e.code).toLowerCase().includes(f) || String(e.name).toLowerCase().includes(f));
+  return `
+  <div class="cal-sticky"><div class="card cal-bar ${ro ? 'ro' : ''}"><div class="toolbar">
+    <div class="month-nav"><button class="iconbtn" data-mon="-1" aria-label="เดือนก่อน">${ic('left')}</button><select id="monthSel" aria-label="เลือกเดือน · Select month">${TH_M.map((t, i) => `<option value="${i}" ${i===m?'selected':''}>${t} · ${EN_M[i]}</option>`).join('')}</select><button class="iconbtn" data-mon="1" aria-label="เดือนถัดไป">${ic('right')}</button></div>
+    ${ro ? `<span class="pill ro" title="${LOCK_MSG}">${ic('lock')} ดูอย่างเดียว · View only</span>` : past ? `<span class="pill adm" title="เดือนย้อนหลัง: แก้ไขได้ด้วยสิทธิ admin">${ic('shield')} เดือนย้อนหลัง · admin แก้ไขได้</span>` : ''}
+    <span class="pill num">${md.length} วันทำงาน · A ${md.filter(d=>S.cfg.pattern[d]==='A').length} / B ${md.filter(d=>S.cfg.pattern[d]==='B').length}</span>
+    <div class="spacer"></div>
+    <div class="fwrap"><input type="search" id="filter" placeholder="ค้นหาชื่อ / รหัส · Search" value="${esc(S.filter)}" aria-label="ค้นหาพนักงาน" ${noHit ? 'aria-invalid="true" aria-describedby="filterErr"' : ''}>${noHit ? `<p id="filterErr" class="ferr" role="alert">${ic('x')}ไม่พบชื่อหรือรหัส “${esc(S.filter.trim())}” · No match</p>` : ''}</div>
+    <button class="btn" data-act="leaveMenu">${ic('leave')}ลางาน · Leave</button>
+    <button class="btn primary" data-act="xlsx">${ic('dl')}ดาวน์โหลด Excel เดือนนี้</button>
+  </div></div>
+  ${ro ? `<div class="robar" role="note">${ic('lock')}<span><b>⚠ โหมดดูอย่างเดียว</b> · ${TH_M[m]} ${YEAR+543} เป็นเดือนย้อนหลัง แลกกะ ย้ายวัน หรือลาไม่ได้</span></div>` : ''}
+  <div class="cal-head" aria-hidden="true">${DOW_FULL.map(x => `<div class="dow">${x}</div>`).join('')}</div></div>
+  <div class="cal ${ro ? 'ro' : ''}" id="cal">${cells.join('')}</div>
+  <div class="card legend" style="padding:12px 16px">
+    <span class="lg"><span class="sw a"></span>Batch A</span><span class="lg"><span class="sw b"></span>Batch B</span>
+    <span class="lg">${ic('swap')} แลกกะมา · swapped in (ชี้ที่ชื่อเพื่อดูว่าแทนใคร)</span><span class="lg"><span class="sw h"></span>วันหยุดนักขัตฤกษ์ · holiday</span><span class="lg"><span class="lv" style="margin:0">ลา</span> ลางาน · on leave (แลกกะไม่ได้)</span>
+    <span class="lg muted">${ic('hand')} แตะชื่อ แล้วแตะชื่อคนในวันอื่นเพื่อแลก หรือลากวางได้ · Tap or drag a name to swap</span>
+  </div>`;
+}
+function dayCell(s, em, f, sc, today) {
+  const d = +s.slice(8), w = dowOf(s);
+  const hname = sc.hol[s];
+  const dnum = `<span class="dnum" title="${dmy(s)}"><span class="dn">${d}</span><span class="dw">${TH_D[w]} ${dmy(s)}</span></span>`;
+  if (hname) return `<div class="day hol"><div class="day-h">${dnum}</div><div class="holname">${ic('sun')} ${esc(hname)}</div></div>`;
+  const map = sc.days[s];
+  if (!map) return `<div class="day"><div class="day-h">${dnum}</div><span class="muted small">ไม่มีในตาราง</span></div>`;
+  const b = S.cfg.pattern[s];
+  const sorted = [...map.entries()].sort((x,y) => byCode(x[0], y[0]));
+  const chips = sorted.map(([code, note]) => {
+    const e = em[code] || {name: code, batch: '?'};
+    const match = !f || code.toLowerCase().includes(f) || e.name.toLowerCase().includes(f);
+    const lv = onLeave(code, s);
+    const cls = ['chip', e.batch === 'A' ? 'a' : 'b', code === S.me.code ? 'mine' : '', lv ? 'leave' : '', !match ? 'dim' : '', S.sel && S.sel.code === code && S.sel.date === s ? 'sel' : ''].join(' ');
+    // ชื่อที่แลกมาแสดงเหมือนคนอื่น (สีตาม Batch ของตัวเอง) มีแค่ไอคอนเล็กบอกว่าแลก/ย้ายมา รายละเอียดอยู่ใน tooltip
+    const noteT = note?.type === 'swap' ? ` · เข้าแทน ${note.for} ${empName(note.for, em)}` : note?.type === 'move' ? ` · ย้ายมาจาก ${fmtDay(note.from)}` : '';
+    const mark = note ? `<span class="mk" aria-label="${note.type === 'swap' ? 'แลกกะมา' : 'ย้ายวันมา'}">${ic(note.type === 'swap' ? 'swap' : 'arrow')}</span>` : '';
+    return `<button class="${cls}" draggable="${lv || isLocked(s) ? 'false' : 'true'}" data-code="${esc(code)}" data-date="${s}" title="${esc(code)} ${esc(e.name)} · Batch ${esc(e.batch)}${esc(noteT)}${lv ? ' · ลางาน' : ''}"><span class="nm">${mark}<span class="cd">${esc(code)}</span><span class="fn">${esc(firstName(e.name))}</span>${lv ? '<span class="lv">ลา</span>' : ''}</span></button>`;
+  }).join('');
+  const nLv = sorted.filter(([c]) => onLeave(c, s)).length;
+  const wfh = leavesOn(s).filter(l => !map.has(l.code));
+  const wfhH = wfh.length ? `<div class="wfh-lv"><span>ลา (WFH):</span>${wfh.sort((x, y) => byCode(x.code, y.code)).map(l => { const e = em[l.code] || {name: l.code, batch: '?'}; return `<button class="chip leave ${l.code === S.me.code ? 'mine' : ''}" data-lvcode="${esc(l.code)}" data-date="${s}" title="${esc(l.code)} ${esc(e.name)} · ลางาน"><span class="nm"><span class="cd">${esc(l.code)}</span><span class="fn">${esc(firstName(e.name))}</span><span class="lv">ลา</span></span></button>`; }).join('')}</div>` : '';
+  return `<div class="day ${s===today?'today':''} ${isLocked(s) ? 'locked' : S.sel && S.sel.date !== s ? 'target' : ''}" data-day="${s}">
+    <div class="day-h">${dnum}<span class="tag ${b==='A'?'a':'b'}">Batch ${b}</span></div>
+    <div class="chips">${chips || '<span class="muted small">ไม่มีคนเข้า</span>'}</div>${wfhH}
+    <span class="count num">${map.size - nLv} คน${nLv ? ` · ลา ${nLv}` : ''}</span></div>`;
+}
+function firstName(n) { const p = String(n).trim().split(/\s+/); return p[0] === 'ตัวอย่าง' && p[1] ? p[1] : p[0]; }
+
+/* ---------- swap / move flow ---------- */
+function guardWrite() {
+  if (!S.me.code) { toast('เลือก “ฉันคือ” ที่มุมขวาบนก่อน เพื่อบันทึกว่าใครเป็นคนแก้'); document.getElementById('meSel').focus(); return false; }
+  return true;
+}
+// แลก/ย้ายได้เฉพาะชื่อของตัวเอง (ตามที่เลือกใน “ฉันคือ”) กับคนอื่น
+const canAct = code => !!code && (code === S.me.code || can('swapOthers'));
+function isMe(code) { if (canAct(code)) return true; toast('แลกได้เฉพาะชื่อของคุณเอง แตะชื่อของคุณก่อน · Only your own name'); return false; }
+function onChip(code, date) {
+  if (isLocked(date)) { toast(LOCK_MSG); return; }
+  if (!S.sel) { if (!guardWrite()) return; if (onLeave(code, date) && canLeaveFor(code)) { askCancelLeave(S.lv.get(code + '|' + date)); return; } if (!isMe(code)) return; if (onLeave(code, date)) { askCancelLeave(S.lv.get(code + '|' + date)); return; } S.sel = {code, date}; render(); return; }
+  if (onLeave(code, date)) { toast(`${code} ลางานวันนั้น แลกกะไม่ได้ · On leave`); return; }
+  if (S.sel.code === code && S.sel.date === date) { S.sel = null; render(); return; }
+  if (S.sel.date === date) { if (canAct(code)) { S.sel = {code, date}; render(); } else toast('เลือกคนในวันอื่นเพื่อแลกกับคุณ'); return; }
+  askSwap(S.sel, {code, date});
+}
+function onDay(date) {
+  if (!S.sel || S.sel.date === date) return;
+  if (isLocked(date)) { toast(LOCK_MSG); return; }
+  askMove(S.sel, date);
+}
+function askSwap(x, y) {
+  if (!canAct(x.code)) { isMe(x.code); S.sel = null; render(); return; }
+  if (isLocked(x.date) || isLocked(y.date)) { toast(LOCK_MSG); return; }
+  const em = empMap(), D = S.sched.days;
+  const lvHit = [[x.code, x.date], [x.code, y.date], [y.code, y.date], [y.code, x.date]].find(([c, d]) => onLeave(c, d));
+  if (lvHit) { toast(`แลกไม่ได้: ${lvHit[0]} ลางานวันที่ ${dmy(lvHit[1])}`); return; }
+  if (D[x.date].has(y.code) || D[y.date].has(x.code)) { toast('แลกไม่ได้: มีชื่อซ้ำในวันปลายทางอยู่แล้ว'); return; }
+  const A = empName(x.code, em), B = empName(y.code, em);
+  modal(`<h2>${ic('swap')} ยืนยันแลกกะ <span class="en">Confirm swap</span></h2>
+   <div class="swapviz">
+     <div class="side"><span class="small muted">${esc(fmtDay(x.date))}</span><b>${esc(y.code)} ${esc(B)}</b><span class="small">เข้าแทน ${esc(x.code)} ${esc(A)}</span></div>
+     <span class="arrow">${ic('swap')}</span>
+     <div class="side"><span class="small muted">${esc(fmtDay(y.date))}</span><b>${esc(x.code)} ${esc(A)}</b><span class="small">เข้าแทน ${esc(y.code)} ${esc(B)}</span></div>
+   </div>
+   <p class="small muted" style="margin:0">ทุกคนที่เปิดหน้านี้จะเห็นทันที และคุณยกเลิกได้ภายหลังที่แท็บ ประวัติ (จนกว่าจะพ้นเดือนนั้น)</p>
+   <div class="modal-actions"><button class="btn" data-close="1">ยกเลิก</button><button class="btn primary" data-confirm="swap" data-a="${esc(x.code)}" data-d1="${x.date}" data-b="${esc(y.code)}" data-d2="${y.date}">${ic('check')}ยืนยันแลกกะ</button></div>`);
+}
+function askMove(x, date) {
+  if (!canAct(x.code)) { isMe(x.code); S.sel = null; render(); return; }
+  if (isLocked(x.date) || isLocked(date)) { toast(LOCK_MSG); return; }
+  if (S.sched.days[date]?.has(x.code)) { toast('คนนี้มีชื่อเข้าวันนั้นอยู่แล้ว'); return; }
+  const lvD = [x.date, date].find(d => onLeave(x.code, d)); if (lvD) { toast(`ย้ายไม่ได้: คุณลางานวันที่ ${dmy(lvD)}`); return; }
+  const A = empName(x.code);
+  modal(`<h2>${ic('arrow')} ย้ายวันเข้า Office <span class="en">Move day</span></h2>
+   <div class="swapviz"><div class="side"><span class="small muted">จาก · from</span><b>${esc(fmtDay(x.date))}</b></div><span class="arrow">${ic('arrow')}</span><div class="side"><span class="small muted">ไป · to</span><b>${esc(fmtDay(date))}</b></div></div>
+   <p style="margin:0"><b>${esc(x.code)} ${esc(A)}</b> จะย้ายไปเข้าวันใหม่โดยไม่มีคนแลกด้วย (จำนวนคนต่อวันจะเปลี่ยน)</p>
+   <div class="modal-actions"><button class="btn" data-close="1">ยกเลิก</button><button class="btn primary" data-confirm="move" data-a="${esc(x.code)}" data-d1="${x.date}" data-d2="${date}">${ic('check')}ยืนยันย้าย</button></div>`);
+}
+async function commit(type, a, b, d1, d2) {
+  modal(''); S.sel = null;
+  if (isLocked(d1) || isLocked(d2)) { toast(LOCK_MSG); render(); return; }
+  try {
+    await store.addChange({ type, a, b: b || null, d1, d2, by: S.me.id, byCode: S.me.code, createdAt: new Date().toISOString(), undone: false, epoch: S.cfg.epoch || 0, year: YEAR });
+    toast(type === 'swap' ? 'แลกกะเรียบร้อย · Swapped' : 'ย้ายวันเรียบร้อย · Moved');
+  } catch (e) { writeFail(e); }
+  render();
+}
+function writeFail(e) {
+  if (e?.code === 'permission-denied') toast('บันทึกไม่ได้: ฐานข้อมูลไม่อนุญาต (ตรวจ Firestore Rules และการเปิด Anonymous sign-in)');
+  else if (e?.code === 'unavailable') toast('เชื่อมต่อฐานข้อมูลไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่');
+  else if (e?.code === 'invalid_argument') toast('บันทึกไม่ได้: บัญชีนี้ยังไม่ได้รับสิทธิ์ใช้งานหน้านี้ ให้เจ้าของแชร์ลิงก์แบบใช้งานได้');
+  else if (e?.code === 'quota_exceeded') toast('พื้นที่เก็บข้อมูลเต็ม แจ้งผู้ดูแลให้ล้างประวัติ');
+  else toast('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง (' + (e?.code || 'error') + ')');
+}
+function renderBar() {
+  const el = document.getElementById('bar');
+  if (!S.sel || curTab() !== 'cal') { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="actionbar" role="status"><p><b>${esc(S.sel.code)} ${esc(empName(S.sel.code))}</b> · ${esc(fmtDay(S.sel.date))}<br><span class="small muted">แตะชื่อคนในวันอื่นเพื่อแลกกะ หรือแตะพื้นที่ว่างของวันอื่นเพื่อย้ายวัน · Tap a name to swap, or an empty area to move</span></p>${canLeaveFor(S.sel.code) ? `<button class="btn" data-act="leaveSel">${ic('leave')}${S.sel.code === S.me.code ? 'ลางานวันนี้' : 'ลาแทนวันนี้'}</button>` : ''}<button class="btn" data-act="cancelSel">${ic('x')}ยกเลิกการเลือก</button></div>`;
+}
+
+/* ---------- stats ---------- */
+function stats() {
+  const sc = S.sched, em = empMap(), per = {}, batchM = {A: Array(12).fill(0), B: Array(12).fill(0)}, daysM = {A: Array(12).fill(0), B: Array(12).fill(0)};
+  (S.cfg.employees || []).forEach(e => per[e.code] = Array(12).fill(0));
+  sc.workdays.forEach(d => {
+    const m = +d.slice(5,7) - 1; daysM[S.cfg.pattern[d]][m]++;
+    sc.days[d].forEach((_, code) => { if (per[code]) per[code][m]++; const b = em[code]?.batch; if (batchM[b]) batchM[b][m]++; });
+  });
+  const swaps = {};
+  activeChanges().forEach(c => { if (c.undone || !sc.applied.has(c.id)) return; [c.a, c.b].filter(Boolean).forEach(p => swaps[p] = (swaps[p] || 0) + 1); });
+  return { per, batchM, daysM, swaps };
+}
+const sum = a => a.reduce((x,y) => x+y, 0);
+function kpi(icon, cls, v, l) { return `<div class="kpi"><div class="badge-ic" style="background:var(--${cls}-soft);color:var(--${cls}-deep)">${ic(icon)}</div><div><div class="v">${v}</div><div class="l">${l}</div></div></div>`; }
+
+function vBatch() {
+  if (!S.sched) return needSetup();
+  const st = stats(), cfg = S.cfg, em = cfg.employees;
+  const nA = em.filter(e => e.batch === 'A').length, nB = em.filter(e => e.batch === 'B').length;
+  const dA = sum(st.daysM.A), dB = sum(st.daysM.B);
+  const pA = sum(st.batchM.A), pB = sum(st.batchM.B);
+  const rows = TH_M.map((t,i) => `<tr><td class="l">${t} <span class="en">${EN_M[i].slice(0,3)}</span></td><td>${st.daysM.A[i]+st.daysM.B[i]}</td><td>${st.daysM.A[i]}</td><td>${st.daysM.B[i]}</td><td>${st.batchM.A[i]}</td><td>${st.batchM.B[i]}</td></tr>`).join('');
+  return `
+  <div class="kpis">
+    ${kpi('cal','a', S.sched.workdays.length, 'วันทำงานทั้งปี (หักวันหยุด) · Workdays')}
+    ${kpi('users','a', `${dA}`, `วันเข้าของ Batch A · ${nA} คน`)}
+    ${kpi('users','b', `${dB}`, `วันเข้าของ Batch B · ${nB} คน`)}
+    ${kpi('check','s', `${Math.abs(dA-dB)}`, Math.abs(dA-dB) <= 1 ? 'ส่วนต่าง A–B (สมดุลแล้ว) · Balanced' : 'ส่วนต่าง A–B · Difference')}
+  </div>
+  <div class="card chart"><div class="sec-h"><div class="badge-ic">${ic('chart')}</div><div><h2>วันเข้า Office ต่อเดือนแยก Batch <span class="en">Office days per month by batch</span></h2><p class="small muted" style="margin:0">นับจากแพทเทิร์นสลับวันเว้นวัน (ตารางตั้งต้น) · base rotation days</p></div></div>
+    ${groupChart(st.daysM.A, st.daysM.B)}
+    <div class="legend"><span class="lg"><span class="sw" style="background:var(--a-bar)"></span>Batch A</span><span class="lg"><span class="sw" style="background:var(--b-bar)"></span>Batch B</span></div>
+  </div>
+  <div class="card"><div class="sec-h"><div class="badge-ic">${ic('users')}</div><h2>ตารางสรุปรายเดือน / ทั้งปี <span class="en">Monthly & yearly summary</span></h2></div>
+  <div class="tbl-wrap"><table><thead><tr><th class="l">เดือน</th><th>วันทำงาน</th><th>วัน Batch A</th><th>วัน Batch B</th><th>คน-วัน A<br><span class="en">person-days</span></th><th>คน-วัน B<br><span class="en">person-days</span></th></tr></thead>
+  <tbody>${rows}</tbody><tfoot><tr><td class="l">รวมทั้งปี · Year</td><td>${dA+dB}</td><td>${dA}</td><td>${dB}</td><td>${pA}</td><td>${pB}</td></tr></tfoot></table></div>
+  <p class="small muted">คน-วัน = จำนวนครั้งที่สมาชิกของ Batch นั้นเข้า Office จริง หลังรวมการแลกกะ/ย้ายวันแล้ว</p></div>`;
+}
+function groupChart(A, B) {
+  const W = 760, H = 280, L = 36, R = 8, T = 22, Bm = 30, max = Math.max(1, ...A, ...B);
+  const top = Math.ceil(max / 5) * 5, ih = H - T - Bm, gw = (W - L - R) / 12, bw = Math.min(22, gw * 0.34);
+  const y = v => T + ih - (v / top) * ih;
+  let g = '';
+  for (let t = 0; t <= top; t += 5) g += `<line x1="${L}" x2="${W-R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)"/><text x="${L-6}" y="${y(t)+4}" text-anchor="end">${t}</text>`;
+  A.forEach((a, i) => {
+    const cx = L + gw * i + gw / 2, b = B[i];
+    g += `<rect x="${cx-bw-1}" y="${y(a)}" width="${bw}" height="${T+ih-y(a)}" rx="3" fill="var(--a-bar)"/><text class="val" x="${cx-bw/2-1}" y="${y(a)-4}" text-anchor="middle">${a}</text>`;
+    g += `<rect x="${cx+1}" y="${y(b)}" width="${bw}" height="${T+ih-y(b)}" rx="3" fill="var(--b-bar)"/><text class="val" x="${cx+bw/2+1}" y="${y(b)-4}" text-anchor="middle">${b}</text>`;
+    g += `<text x="${cx}" y="${H-8}" text-anchor="middle">${TH_MS[i]}</text>`;
+  });
+  return `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="กราฟแท่งวันเข้า Office ต่อเดือน Batch A และ B" style="min-width:560px">${g}</svg></div>`;
+}
+
+function vPerson() {
+  if (!S.sched) return needSetup();
+  const st = stats(); let em = [...S.cfg.employees];
+  const lvCount = {}; S.lv.forEach(l => lvCount[l.code] = (lvCount[l.code] || 0) + 1);
+  if (S.personBatch !== 'all') em = em.filter(e => e.batch === S.personBatch);
+  // เรียงตามคอลัมน์ที่กดหัวตาราง (กดซ้ำสลับ น้อย→มาก / มาก→น้อย) แล้วตามรหัส
+  const {k: sk, dir} = S.psort;
+  const val = e => sk === 'code' ? e.code : sk === 'name' ? e.name : sk === 'batch' ? e.batch : sk === 'total' ? sum(st.per[e.code]) : sk === 'swaps' ? (st.swaps[e.code] || 0) : sk === 'leave' ? (lvCount[e.code] || 0) : st.per[e.code][+sk.slice(1)];
+  em.sort((a, b) => { const x = val(a), y = val(b); const c = typeof x === 'number' ? x - y : sk === 'name' ? String(x).localeCompare(String(y), 'th') : byCode(x, y); return (c * dir) || byCode(a.code, b.code); });
+  const sh = (key, label, cls = '') => { const on = sk === key; return `<th class="${cls}"${on ? ` aria-sort="${dir > 0 ? 'ascending' : 'descending'}"` : ''}><button class="sortb" data-psort="${key}" title="กดเพื่อเรียง · Sort">${label}<span class="ar" aria-hidden="true">${on ? (dir > 0 ? '▲' : '▼') : '▲▼'}</span></button></th>`; };
+  const max = Math.max(1, ...em.flatMap(e => st.per[e.code]));
+  const cell = (v, b) => `<td><span class="heat num" style="display:inline-block;min-width:30px;padding:1px 4px;background:color-mix(in srgb,var(--${b==='A'?'a':'b'}-soft) ${Math.round(25 + 75*v/max)}%,transparent)">${v}</span></td>`;
+  const rows = em.map(e => `<tr><td class="l fz1"><b>${esc(e.code)}</b></td><td class="l fz2">${esc(e.name)}</td><td class="l"><span class="tag ${e.batch==='A'?'a':'b'}">${esc(e.batch)}</span></td>${st.per[e.code].map(v => cell(v, e.batch)).join('')}<td><b>${sum(st.per[e.code])}</b></td><td>${st.swaps[e.code] || 0}</td><td>${lvCount[e.code] || 0}</td></tr>`).join('');
+  const totals = Array(12).fill(0).map((_, i) => sum(em.map(e => st.per[e.code][i])));
+  const yearly = em.map(e => sum(st.per[e.code]));
+  return `
+  <div class="kpis">
+    ${kpi('user','a', em.length, 'จำนวนพนักงานที่แสดง · People')}
+    ${kpi('cal','a', yearly.length ? Math.max(...yearly) : 0, 'วันเข้าสูงสุดต่อคน · Max days')}
+    ${kpi('cal','b', yearly.length ? Math.min(...yearly) : 0, 'วันเข้าต่ำสุดต่อคน · Min days')}
+    ${kpi('swap','s', sum(Object.values(st.swaps)), 'ครั้งที่เกี่ยวข้องกับการแลก/ย้าย · Swap involvements')}
+  </div>
+  <div class="card"><div class="toolbar" style="margin-bottom:12px"><div class="sec-h" style="margin:0"><div class="badge-ic">${ic('users')}</div><div><h2>วันเข้า Office รายบุคคล <span class="en">Office days by person · month / year</span></h2><p class="small muted" style="margin:0">กดหัวคอลัมน์เพื่อเรียง กดซ้ำเพื่อสลับมาก↔น้อย</p></div></div><div class="spacer"></div>
+    <div class="seg" role="group" aria-label="กรอง Batch">${['all','A','B'].map(b => `<button data-pb="${b}" aria-pressed="${S.personBatch===b}">${b==='all'?'ทั้งหมด':'Batch '+b}</button>`).join('')}</div></div>
+  <div class="tbl-wrap" style="max-height:70vh"><table><thead><tr>${sh('code', 'รหัส', 'l fz1')}${sh('name', 'ชื่อ', 'l fz2')}${sh('batch', 'Batch', 'l')}${TH_MS.map((m, i) => sh('m' + i, m)).join('')}${sh('total', 'รวมปี')}${sh('swaps', 'แลก/ย้าย')}${sh('leave', 'ลา')}</tr></thead>
+  <tbody>${rows || '<tr><td class="l" colspan="18">ไม่มีข้อมูล</td></tr>'}</tbody>
+  <tfoot><tr><td class="l fz1">รวม</td><td class="l fz2">Total</td><td></td>${totals.map(t => `<td>${t}</td>`).join('')}<td>${sum(totals)}</td><td></td><td>${sum(em.map(e => lvCount[e.code] || 0))}</td></tr></tfoot></table></div></div>`;
+}
+
+function vFun() {
+  if (!S.sched) return needSetup();
+  const st = stats(), em = empMap();
+  const list = Object.entries(st.swaps).sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0])).slice(0, 15);
+  const max = list[0]?.[1] || 1;
+  const titles = ['แชมป์แลกกะ · Swap Champion','รองแชมป์ · Runner-up','อันดับ 3 · Bronze'];
+  const rows = list.map(([code, n], i) => `<div class="rank"><span class="no ${i<3?'top r'+(i+1):''}">${i<3 ? ic('trophy') : i+1}</span><span class="nm"><b>${esc(code)}</b> ${esc(empName(code, em))}${i<3?`<br><span class="small muted">${titles[i]}</span>`:''}</span><span class="barw"><span class="bar ${i<3?'r'+(i+1):''}" style="display:block;width:${Math.max(6, n/max*100)}%"></span></span><b class="num" style="text-align:right">${n}</b></div>`).join('');
+  return `<div class="card"><div class="sec-h"><div class="badge-ic" style="background:var(--s-soft);color:var(--s-deep)">${ic('trophy')}</div><div><h2>ใครแลกกะเยอะสุด <span class="en">Swap leaderboard · just for fun</span></h2><p class="small muted" style="margin:0">นับทุกครั้งที่มีชื่อในการแลกกะหรือย้ายวันที่ยังมีผลอยู่ (ทั้งคนขอและคนรับแลก)</p></div></div>
+  ${list.length ? `<div class="board">${rows}</div>` : `<div class="empty"><p class="muted">ยังไม่มีใครแลกกะเลย ใครจะเป็นคนแรก? · No swaps yet</p><button class="btn" data-tab="cal">${ic('cal')}ไปที่ปฏิทิน</button></div>`}</div>`;
+}
+
+function vGuide() {
+  const mk = n => `<span class="mk">${ic(n)}</span>`;
+  const chipM = (c, n, cls, icon='') => `<span class="chip ${cls}" style="cursor:default"><span class="nm">${icon ? mk(icon) : ''}<span class="cd">${c}</span>${n}</span></span>`;
+  return `  <div class="grid2">
+    <div class="card"><div class="sec-h"><div class="badge-ic">${ic('cal')}</div><h3>อ่านปฏิทิน <span class="en">Reading the calendar</span></h3></div>
+      <div style="display:grid;gap:8px">
+        <div class="row">${chipM('EX001','สีเขียว','a')}<span class="muted">คนใน Batch A</span></div>
+        <div class="row">${chipM('EX002','สีส้ม','b')}<span class="muted">คนใน Batch B</span></div>
+        <div class="row">${chipM('EX004','ตัวคุณ','b mine')}<span class="muted">ชื่อของคุณเอง</span></div>
+        <div class="row">${chipM('EX006','แลกมา','b','swap')}<span class="muted">แลกกะมา (ชี้เพื่อดูว่าแทนใคร)</span></div>
+        <div class="row">${chipM('EX005','ย้ายมา','a','arrow')}<span class="muted">ย้ายวันมา</span></div>
+        <div class="row"><span class="chip b leave" style="cursor:default"><span class="nm"><span class="cd">EX007</span><span class="fn">ลางาน</span><span class="lv">ลา</span></span></span><span class="muted">ลางานวันนั้น แลกกะไม่ได้</span></div>
+        <div class="row"><span class="sw h" style="width:28px;height:18px"></span><span class="muted">วันหยุดนักขัตฤกษ์ ไม่มีคนเข้า</span></div>
+      </div></div>
+    <div class="card"><div class="sec-h"><div class="badge-ic">${ic('check')}</div><h3>กติกา <span class="en">Rules</span></h3></div>
+      <ul style="margin:0;padding-left:20px;display:grid;gap:6px">
+        <li>เข้า Office จันทร์–ศุกร์ หยุดเสาร์–อาทิตย์และวันหยุดนักขัตฤกษ์ไทย</li>
+        <li>แลกหรือย้ายได้เฉพาะชื่อของตัวเอง (ตามที่เลือกใน “ฉันคือ”) กับคนอื่นเท่านั้น</li>
+        <li>แลกได้เฉพาะคนที่อยู่ต่างวันกัน และไม่ทำให้ชื่อซ้ำในวันเดียวกัน</li>
+        <li>ต้องเลือก “ฉันคือ” ก่อน ระบบจะบันทึกว่าใครเป็นคนแลก</li>
+        <li>เปลี่ยน “ฉันคือ” เป็นชื่อใครต้องใส่รหัสผ่านของคนนั้น รหัสเริ่มต้นคือรหัสพนักงาน ควรเปลี่ยนเป็นรหัสของตัวเองที่แท็บ ตั้งค่า</li>
+        <li>ยกเลิก (undo) การแลกกะ และยกเลิกการลา ทำย้อนหลังได้ แต่เฉพาะรายการของตัวเองที่ยังอยู่ในเดือนปัจจุบันหรือเดือนถัดไป รายการในเดือนที่ผ่านไปแล้วยกเลิกไม่ได้</li>
+        <li>เดือนย้อนหลัง (ก่อนวันที่ 1 ของเดือนปัจจุบัน) ดูได้อย่างเดียว แลกกะ ย้ายวัน ลา หรือยกเลิกการลาไม่ได้</li>
+        <li>ลางาน: แตะชื่อตัวเองแล้วกด “ลางานวันนี้” หรือกดปุ่ม “ลางาน” เพื่อเลือกวัน ลาได้เฉพาะวันทำงาน (ไม่ใช่เสาร์–อาทิตย์หรือวันหยุด)</li>
+        <li>วันที่ลา ชื่อจะมีป้าย <span class="lv">ลา</span> และแลกกะ/ย้ายวันไม่ได้ ยกเลิกการลาได้โดยแตะชื่อตัวเองในวันนั้น</li>
+      </ul></div>
+    <div class="card"><div class="sec-h"><div class="badge-ic">${ic('dl')}</div><h3>ดาวน์โหลด Excel <span class="en">Export</span></h3></div>
+      <p style="margin:0" class="muted">เลือกเดือนในหน้าปฏิทิน แล้วกด “ดาวน์โหลด Excel เดือนนี้” ไฟล์มี 4 ชีต: ตารางรายคน (วันที่ลาขึ้นว่า “ลา”), รายชื่อรายวัน, รายการแลกกะ และรายการลาของเดือนนั้น วันที่ทั้งหมดเป็นรูปแบบ DD/MM/YYYY</p></div>
+  </div>
+  <div class="card"><div class="sec-h"><div class="badge-ic">${ic('hand')}</div><div><h2>ลากชื่อเพื่อย้ายวัน <span class="en">Drag &amp; drop · computer</span></h2><p class="small muted" style="margin:0">ทางลัดแทนการแตะทีละขั้น ใช้ได้บนคอมพิวเตอร์ (มือถือ/แท็บเล็ตให้ใช้วิธีแตะในหัวข้อถัดไป)</p></div></div>
+    <div class="grid2">
+      <div style="display:grid;gap:8px;align-content:start">
+        <ol style="margin:0;padding-left:20px;display:grid;gap:6px">
+          <li>เลือก “ฉันคือ” ให้เป็นชื่อของคุณก่อน</li>
+          <li>กดชื่อ<b>ของคุณ</b>ค้างไว้ในวันที่ต้องการเปลี่ยน แล้วลากออกมา (ลากชื่อคนอื่นไม่ได้)</li>
+          <li><b>แลกกะ:</b> วางลงบน<b>ชื่อคนในวันอื่น</b> · <b>ย้ายวัน:</b> วางลงบน<b>พื้นที่ว่างของวันอื่น</b> ช่องวันที่วางได้จะมีกรอบสีม่วง</li>
+          <li>หน้าต่างยืนยันจะขึ้นมา ตรวจวันที่และชื่อ แล้วกด “ยืนยันแลกกะ” หรือ “ยืนยันย้าย”</li>
+        </ol>
+        <p class="small muted" style="margin:0">ลากไม่ได้ถ้า: ชื่อนั้นลางานวันนั้น, วันปลายทางเป็นวันหยุด หรือจะทำให้ชื่อซ้ำในวันเดียวกัน · ลากข้ามเดือนไม่ได้ ให้ใช้วิธีแตะแล้วเปลี่ยนเดือน · กด Esc เพื่อยกเลิก</p>
+      </div>
+      <div class="mini" style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center" aria-hidden="true">
+        <div style="display:grid;gap:4px"><span class="small muted">จ. 05/01</span>${chipM('EX001','กนกวรรณ','a sel')}${chipM('EX003','ณัฐธิดา','a')}</div>
+        <span style="color:var(--s-deep)">${ic('arrow')}</span>
+        <div style="display:grid;gap:4px;padding:6px;border-radius:8px;box-shadow:0 0 0 2px var(--s-line);background:var(--s-soft)"><span class="small muted">อ. 06/01 · วางที่นี่</span>${chipM('EX002','ชยพล','b')}${chipM('EX004','ธนากร','b')}</div>
+      </div>
+    </div>
+  </div>
+<div class="card"><div class="sec-h"><div class="badge-ic">${ic('book')}</div><div><h2>วิธีแลกกะ ทีละขั้น <span class="en">How to swap, step by step</span></h2><p class="small muted" style="margin:0">ทำบนหน้าปฏิทินได้ทันที ทุกคนที่เปิดหน้านี้อยู่จะเห็นการเปลี่ยนแปลงแบบ real-time</p></div></div>
+  <div class="steps">
+    <div class="step"><span class="n">1</span><h3>เลือกว่าคุณคือใคร <span class="en">Pick yourself</span></h3><p class="muted" style="margin:0">ที่มุมขวาบน เลือกชื่อของคุณในช่อง “ฉันคือ” (รายชื่อเรียงตาม Batch แล้วตามรหัส) ชื่อของคุณในปฏิทินจะเป็นแถบสีฟ้าขอบน้ำเงิน มีป้าย “ฉัน · me” หาเจอง่าย</p><div class="mini" style="flex-direction:column">${chipM('EX001','กนกวรรณ','a mine')}</div></div>
+    <div class="step"><span class="n">2</span><h3>แตะ หรือลากชื่อของคุณ <span class="en">Tap or drag your name</span></h3><p class="muted" style="margin:0"><b>แตะ:</b> แตะชื่อของคุณเอง (เลือกชื่อคนอื่นไม่ได้) ในวันที่ต้องการเปลี่ยน ชื่อจะมีกรอบ และแถบด้านล่างจอบอกว่ากำลังเลือกใคร วันไหน กด “ยกเลิกการเลือก” หรือ Esc ถ้าเลือกผิด<br><b>ลาก (คอมพิวเตอร์):</b> กดชื่อของคุณค้างไว้แล้วลากออกมา ชื่อคนอื่นและชื่อที่ลางานลากไม่ได้</p><div class="mini" style="flex-direction:column">${chipM('EX001','กนกวรรณ','a sel')}</div></div>
+    <div class="step"><span class="n">3</span><h3>แตะ หรือวางที่ปลายทาง <span class="en">Tap or drop on target</span></h3><p class="muted" style="margin:0"><b>แตะ:</b> แตะชื่อคนในอีกวันเพื่อสลับวันกัน หรือแตะพื้นที่ว่างของวันอื่นเพื่อย้ายวันอย่างเดียว (ไม่มีคนแลกด้วย)<br><b>ลาก:</b> ลากไปปล่อย<b>บนชื่อคนในวันอื่น</b> = แลกกะ · ปล่อย<b>บนพื้นที่ว่างของวันอื่น</b> = ย้ายวัน ช่องวันที่วางได้จะขึ้นกรอบสีม่วงตอนลากผ่าน<br><b>ข้ามเดือน:</b> ใช้วิธีแตะ หลังแตะชื่อแรกแล้วเปลี่ยนเดือนด้วยช่องเลือกเดือนหรือลูกศร ‹ › ชื่อที่เลือกไว้ยังค้างอยู่ แล้วค่อยแตะคนในเดือนนั้น</p><div class="mini" style="flex-direction:column">${chipM('EX002','ชยพล','b sel')}</div></div>
+    <div class="step"><span class="n">4</span><h3>ตรวจแล้วกดยืนยัน <span class="en">Confirm</span></h3><p class="muted" style="margin:0">ทั้งแตะและลากจะขึ้นหน้าต่างยืนยันเหมือนกัน บอกวันที่ (DD/MM/YYYY) และใครเข้าแทนใคร กด “ยืนยันแลกกะ” แล้วชื่อจะย้ายไปอยู่วันใหม่ทันที สีตาม Batch ของตัวเอง มีไอคอน ⇄ หน้าชื่อ ชี้ที่ชื่อเพื่อดูว่าเข้าแทนใคร</p><div class="mini" style="flex-direction:column">${chipM('EX002','ชยพล','b','swap')}${chipM('EX003','ณัฐธิดา','a')}</div></div>
+    <div class="step"><span class="n">5</span><h3>เปลี่ยนใจ? ยกเลิกได้ <span class="en">Undo</span></h3><p class="muted" style="margin:0">ไปที่แท็บ ประวัติ แล้วกด “ยกเลิก” ที่รายการของคุณ ยกเลิกย้อนหลังได้ แต่ต้องยังไม่พ้นเดือนของรายการนั้น (เดือนย้อนหลังยกเลิกไม่ได้) และถ้าคนเดียวกันมีรายการใหม่กว่า ต้องยกเลิกรายการล่าสุดก่อน</p><div class="mini"><span class="btn" style="cursor:default">${ic('undo')}ยกเลิก · Undo</span></div></div>
+  </div></div>
+  <div class="card"><div class="sec-h"><div class="badge-ic">${ic('leave')}</div><div><h2>วิธีลางาน ทีละขั้น <span class="en">How to take leave</span></h2><p class="small muted" style="margin:0">ลาได้เฉพาะวันทำงาน จ.–ศ. ที่ไม่ใช่วันหยุดนักขัตฤกษ์ และไม่ใช่เดือนย้อนหลัง</p></div></div>
+  <div class="steps">
+    <div class="step"><span class="n">1</span><h3>เลือกว่าคุณคือใคร <span class="en">Pick yourself</span></h3><p class="muted" style="margin:0">เลือกชื่อของคุณในช่อง “ฉันคือ” ที่มุมขวาบน แล้วใส่รหัสผ่าน (ถ้ายังไม่เคยเปลี่ยน รหัสคือรหัสพนักงาน)</p></div>
+    <div class="step"><span class="n">2</span><h3>ลาวันที่เข้า Office <span class="en">From the calendar</span></h3><p class="muted" style="margin:0">ในปฏิทิน แตะชื่อของคุณในวันที่จะลา แล้วกดปุ่ม <b>“ลางานวันนี้”</b> ที่แถบด้านล่างจอ</p><div class="mini"><span class="btn" style="cursor:default">${ic('leave')}ลางานวันนี้</span></div></div>
+    <div class="step"><span class="n">3</span><h3>หรือเลือกวันเอง <span class="en">Pick any date</span></h3><p class="muted" style="margin:0">กดปุ่ม <b>“ลางาน · Leave”</b> บนแถบปฏิทิน เลือกวันที่ แล้วกด <b>“ลาวันที่เลือก”</b> ใช้ลาวันที่ทำงานที่บ้าน (ไม่มีชื่อในปฏิทิน) ได้ด้วย</p><div class="mini"><span class="btn" style="cursor:default">${ic('leave')}ลางาน · Leave</span></div></div>
+    <div class="step"><span class="n">4</span><h3>ตรวจแล้วกดยืนยัน <span class="en">Confirm</span></h3><p class="muted" style="margin:0">หน้าต่างยืนยันบอกชื่อและวันที่ กด <b>“ยืนยันลา”</b> ชื่อในวันนั้นจะขีดฆ่าและมีป้าย <span class="lv">ลา</span> ถ้าเป็นวันทำงานที่บ้าน จะขึ้นใต้ช่องวันว่า “ลา (WFH)” และไฟล์ Excel จะขึ้นว่า “ลา”</p><div class="mini"><span class="chip a leave" style="cursor:default"><span class="nm"><span class="cd">EX001</span><span class="fn">กนกวรรณ</span><span class="lv">ลา</span></span></span></div></div>
+    <div class="step"><span class="n">5</span><h3>ยกเลิกการลา <span class="en">Cancel leave</span></h3><p class="muted" style="margin:0">แตะชื่อของคุณที่มีป้าย “ลา” ในวันนั้น แล้วกด <b>“ยกเลิกการลา”</b> หรือกดยกเลิกจากรายการในปุ่ม “ลางาน” หรือแท็บ ประวัติ › ลา</p><div class="mini"><span class="btn danger" style="cursor:default">${ic('undo')}ยกเลิกการลา</span></div></div>
+  </div>
+  <p class="small muted" style="margin:12px 0 0">วันที่ลา ชื่อของคุณแลกกะหรือย้ายวันไม่ได้ และคนอื่นแลกกะกับคุณในวันนั้นไม่ได้ · ถ้าจะแลกกะวันนั้น ให้ยกเลิกการลาก่อน · admin ที่ได้สิทธิ ลาหรือยกเลิกการลาแทนคนอื่นได้</p></div>`;
+}
+
+function vHist() {
+  if (!S.sched) return needSetup();
+  const em = empMap(), me = S.me.code;
+  if (!me) return `<div class="card empty">${ic('user')}<h2>เลือก “ฉันคือ” ก่อน <span class="en">Pick yourself first</span></h2><p class="muted" style="margin:0">ประวัติแสดงเฉพาะรายการที่มีชื่อของคุณ</p></div>`;
+  const all = can('viewAll'), mineC = c => all || c.a === me || c.b === me;
+  const nSw = activeChanges().filter(mineC).length, nLv = S.leaves.filter(l => +l.year === YEAR && (all || l.code === me)).length;
+  const seg = `<div class="card" style="padding:12px 16px"><div class="toolbar"><span class="small muted">ดูประวัติ · Show</span><div class="seg" role="group" aria-label="เลือกประวัติ">
+    <button data-hv="swap" aria-pressed="${S.histView === 'swap'}">${ic('swap')} แลกกะ / ย้ายวัน <span class="num">(${nSw})</span></button>
+    <button data-hv="leave" aria-pressed="${S.histView === 'leave'}">${ic('leave')} ลา <span class="num">(${nLv})</span></button></div></div></div>`;
+  if (S.histView === 'leave') return seg + leaveHist(em);
+  const list = activeChanges().filter(mineC).reverse();
+  const rows = list.map(c => {
+    const [ok, why] = canUndo(c); const applied = S.sched.applied.has(c.id);
+    const txt = c.type === 'swap'
+      ? `<b>${esc(c.a)} ${esc(empName(c.a, em))}</b> ${ic('swap')} <b>${esc(c.b)} ${esc(empName(c.b, em))}</b><br><span class="small">${esc(fmtDay(c.d2))}: ${esc(c.a)} เข้าแทน ${esc(c.b)} · ${esc(fmtDay(c.d1))}: ${esc(c.b)} เข้าแทน ${esc(c.a)}</span>`
+      : `<b>${esc(c.a)} ${esc(empName(c.a, em))}</b> ย้ายจาก ${esc(fmtDay(c.d1))} ${ic('arrow')} ${esc(fmtDay(c.d2))}`;
+    const status = c.undone ? `<span class="st">ยกเลิกแล้ว</span>` : applied ? `<span class="st ok">มีผล</span>` : `<span class="st">ไม่มีผล (ข้อมูลเปลี่ยน)</span>`;
+    return `<div class="hrow ${c.undone?'undone':''}"><div class="txt">${txt}<br><span class="small muted">โดย ${esc(c.byCode)} ${esc(empName(c.byCode, em))} · ${esc(fmtTime(c.createdAt))}</span></div>${status}
+      ${(myChange(c) || can('undoAny')) && !c.undone ? `<button class="btn" data-undo="${esc(c.id)}" ${ok?'':'disabled'} title="${esc(why)}">${ic('undo')}ยกเลิก · Undo</button>` : ''}</div>`;
+  }).join('');
+  return `${seg}<div class="card"><div class="sec-h"><div class="badge-ic">${ic('clock')}</div><div><h2>ประวัติการแลกกะ <span class="en">Change history</span></h2><p class="small muted" style="margin:0">${all ? 'admin: แสดงรายการของทุกคน' : `แสดงเฉพาะรายการที่มีชื่อ ${esc(S.me.code)} ${esc(empName(S.me.code))}`} · ปุ่ม “ยกเลิก” ใช้ได้กับรายการของคุณย้อนหลังได้ ยกเว้นรายการในเดือนที่ผ่านไปแล้ว (ก่อน ${esc(dmy(monthStart()))}) และถ้าคนเดียวกันมีรายการใหม่กว่า ต้องยกเลิกรายการล่าสุดก่อน</p></div></div>
+  ${rows ? `<div class="hist">${rows}</div>` : `<div class="empty"><p class="muted">ยังไม่มีการแลกกะที่มีชื่อของคุณ · No changes for you yet</p></div>`}</div>`;
+}
+function leaveHist(em) {
+  const list = S.leaves.filter(l => +l.year === YEAR && (can('viewAll') || l.code === S.me.code)).sort((a, b) => a.date.localeCompare(b.date) || byCode(a.code, b.code));
+  const rows = list.map(l => `<div class="hrow ${l.cancelled ? 'undone' : ''}"><div class="txt"><b>${esc(l.code)} ${esc(empName(l.code, em))}</b> ลางาน ${esc(fmtDay(l.date))}<br><span class="small muted">บันทึก ${esc(fmtTime(l.createdAt))}${l.cancelled && l.cancelledAt ? ` · ยกเลิก ${esc(fmtTime(l.cancelledAt))}` : ''}</span></div>${l.cancelled ? '<span class="st">ยกเลิกแล้ว</span>' : '<span class="st ok">ลา</span>'}
+    ${!l.cancelled && isLocked(l.date) ? '<span class="st">ล็อก (พ้นเดือนแล้ว)</span>' : ''}${!l.cancelled && canLeaveFor(l.code) && !isLocked(l.date) ? `<button class="btn" data-leave-ask="${esc(l.id)}">${ic('undo')}ยกเลิกการลา</button>` : ''}</div>`).join('');
+  return `<div class="card"><div class="sec-h"><div class="badge-ic">${ic('leave')}</div><div><h2>ประวัติการลา <span class="en">Leave · ${YEAR}</span></h2><p class="small muted" style="margin:0">ยกเลิกการลาของตัวเองย้อนหลังได้ ยกเว้นการลาในเดือนที่ผ่านไปแล้ว</p></div><div class="spacer"></div><button class="btn" data-act="leaveMenu" style="white-space:nowrap;flex:none">${ic('leave')}ลางาน</button></div>
+  ${rows ? `<div class="hist">${rows}</div>` : `<div class="empty"><p class="muted">ยังไม่มีการลาของคุณ · No leave yet</p></div>`}</div>`;
+}
+
+/* ---------- settings / setup ---------- */
+function holText(h) { return h.map(x => `${dmy(x.date)} ${x.name}`).join('\n'); }
+// อ่านรายชื่อจากไฟล์: หาแถวหัวตารางเอง (รหัส / ชื่อ / นามสกุล / batch) และใช้ batch ตามไฟล์
+function findCols(r) {
+  const f = re => r.findIndex(x => re.test(x));
+  const c = { code: f(/รหัส|code|emp\.?\s*id|^id$|เลขประจำตัว/i), name: f(/^ชื่อ|name|ชื่อ\s*-?\s*(นาม)?สกุล/i), last: f(/^นามสกุล|surname|last\s*name/i), batch: f(/batch|แบทช์|แบตช์|กลุ่ม|ชุด|ทีม|group|^กะ|shift/i) };
+  if (c.last === c.name) c.last = -1;
+  return c;
+}
+function normBatch(v) {
+  const s = String(v ?? '').toUpperCase().replace(/BATCH|แบทช์|แบตช์|กลุ่ม|ชุด|ทีม|GROUP|SHIFT|กะ|[\s:._\-()]/g, '');
+  if (!s) return '';
+  if (s === 'A' || s === '1' || s === 'I' || s === 'ก') return 'A';
+  if (s === 'B' || s === '2' || s === 'II' || s === 'ข') return 'B';
+  return '?' + String(v).trim();
+}
+function parseRoster(rawRows) {
+  const rows = rawRows.map(r => (r || []).map(x => String(x ?? '').trim()));
+  let hi = -1, col = { code: 0, name: 1, last: -1, batch: 2 };
+  for (let i = 0; i < Math.min(20, rows.length); i++) { const c = findCols(rows[i]); if (c.code >= 0 && (c.name >= 0 || c.batch >= 0)) { hi = i; col = c; break; } }
+  const out = [], seen = new Set(), errs = [], labels = [];
+  rows.slice(hi + 1).forEach(r => {
+    const code = r[col.code] || ''; if (!code) return;
+    if (hi < 0 && /รหัส|code/i.test(code)) return;
+    if (seen.has(code)) { errs.push(`รหัสซ้ำ ${code}`); return; } seen.add(code);
+    let name = col.name >= 0 ? (r[col.name] || '') : ''; if (col.last >= 0 && r[col.last]) name = (name + ' ' + r[col.last]).trim();
+    const raw = col.batch >= 0 ? (r[col.batch] || '') : '';
+    let b = normBatch(raw);
+    if (b.startsWith('?')) { const lb = b.slice(1); if (!labels.includes(lb)) labels.push(lb); }
+    out.push({ code, name: name || code, batch: b, src: b ? 'file' : 'auto', raw });
+  });
+  // ชื่อ batch แบบอื่น (เช่น “เช้า/บ่าย”) → ค่าแรกที่พบเป็น A ค่าที่สองเป็น B
+  const map = {}; labels.slice(0, 2).forEach((lb, i) => map[lb] = i ? 'B' : 'A');
+  if (labels.length > 2) errs.push(`ไฟล์มี batch มากกว่า 2 แบบ (${labels.join(', ')}) — ตรวจแถวที่ไม่ใช่ A/B`);
+  let k = 0;
+  out.forEach(e => {
+    if (e.batch.startsWith('?')) { const m = map[e.batch.slice(1)]; e.batch = m || ''; if (!m) e.src = 'auto'; }
+    if (!e.batch) { e.batch = k % 2 ? 'B' : 'A'; e.src = 'auto'; k++; }
+  });
+  const mapNote = Object.keys(map).length ? Object.entries(map).map(([l, b]) => `“${l}” → ${b}`).join(', ') : '';
+  return { out, errs, mapNote, hasBatchCol: col.batch >= 0, headerRow: hi };
+}
+const splitLines = t => t.split(/\r?\n/).filter(l => l.trim()).map(l => l.split(/\t|,/));
+const cloneEmps = a => (a || []).map(e => ({ code: e.code, name: e.name, batch: e.batch, src: e.src || 'saved' }));
+function rosterEditable() { return S.editMode; }
+function ensureDraft() {
+  if (S.rosterDraft) return;
+  const prev = Object.keys(S.cfgs).map(Number).filter(y => y !== YEAR && S.cfgs[y]?.employees?.length).sort((a, b) => Math.abs(a - YEAR) - Math.abs(b - YEAR) || b - a)[0];
+  if (!S.cfg?.employees?.length && prev) { S.rosterDraft = cloneEmps(S.cfgs[prev].employees).map(e => ({ ...e, src: 'saved' })); S.importNote = `${ic('check')} ดึงรายชื่อ ${S.rosterDraft.length} คนจากปี ${prev + 543} มาให้ ตรวจแล้วกด “บันทึกรายชื่อ” หรืออัปโหลดใหม่`; return; }
+  S.rosterDraft = S.cfg?.employees?.length ? cloneEmps(S.cfg.employees) : parseRoster(splitLines(EXAMPLE_ROSTER)).out.map(e => ({ ...e, src: 'example' }));
+}
+function rosterTable(list, editable) {
+  const srcTag = { file: '<span class="st ok">จากไฟล์</span>', auto: '<span class="st">ระบบแบ่งให้</span>', example: '<span class="st">ตัวอย่าง</span>', saved: '', manual: '<span class="st">แก้เอง</span>' };
+  const body = list.map((e, i) => editable
+    ? `<tr><td class="l"><input type="text" id="r-code-${i}" data-ri="${i}" data-f="code" value="${esc(e.code)}" aria-label="รหัส" style="width:110px"></td><td class="l"><input type="text" id="r-name-${i}" data-ri="${i}" data-f="name" value="${esc(e.name)}" aria-label="ชื่อ" style="width:100%;min-width:180px"></td><td class="l"><select id="r-batch-${i}" data-ri="${i}" data-f="batch" aria-label="Batch"><option ${e.batch==='A'?'selected':''}>A</option><option ${e.batch==='B'?'selected':''}>B</option></select> ${srcTag[e.src] || ''}</td><td><button class="iconbtn" data-act="delRow" data-ri="${i}" aria-label="ลบแถว">${ic('x')}</button></td></tr>`
+    : `<tr><td class="l"><b>${esc(e.code)}</b></td><td class="l">${esc(e.name)}</td><td class="l"><span class="tag ${e.batch==='A'?'a':'b'}">${esc(e.batch)}</span></td><td></td></tr>`).join('');
+  const nA = list.filter(e => e.batch === 'A').length, nB = list.length - nA;
+  return `<p class="small" style="margin:0 0 8px"><b class="num">${list.length} คน</b> · <span class="tag a">A ${nA}</span> <span class="tag b">B ${nB}</span></p>
+  <div class="tbl-wrap" style="max-height:420px"><table><thead><tr><th class="l">รหัส</th><th class="l">ชื่อ-นามสกุล</th><th class="l">Batch</th><th></th></tr></thead><tbody>${body || '<tr><td class="l" colspan="4">ยังไม่มีรายชื่อ</td></tr>'}</tbody></table></div>`;
+}
+function vSet() {
+  const cfg = S.cfg, gen = !!cfg?.pattern, ed = rosterEditable();
+  if (ed) ensureDraft();
+  const list = ed ? S.rosterDraft : (cfg?.employees || []);
+  if (ed && !S.draftHol) S.draftHol = (cfg?.holidays || defaultHolidays(YEAR)).map(h => ({ date: h.date, name: h.name }));
+  const holList = ed ? S.draftHol : (cfg?.holidays || []);
+  const ro = !S.editMode;
+  const preview = gen ? null : generatePattern(cleanHol(holList).list);
+  const pv = preview ? Object.values(preview) : [];
+  const lockBar = (S.editMode
+      ? `<div class="row" style="margin-bottom:10px"><span class="st ok">${ic('wand')} เปิดโหมดแก้ไขอยู่ · Edit mode on</span><button class="btn" data-act="lock">${ic('check')}เสร็จแล้ว ล็อกการแก้ไข</button><span class="small muted">กดบันทึกในแต่ละส่วนก่อนล็อก</span></div>`
+      : `<div class="row" style="margin-bottom:10px"><span class="st">ล็อกอยู่ · Locked</span><button class="btn primary" data-act="unlock">${ic('wand')}แก้ไข</button><span class="small muted">ใส่รหัสผ่านเพื่อแก้รายชื่อ/Batch/วันหยุด${gen ? ' (ไม่สร้างตารางใหม่)' : ' และสร้างตาราง'}</span></div>`);
+  return `${pinCard()}${yearCard()}
+  <div class="grid2">
+  <div class="card"><div class="sec-h"><div class="badge-ic">${ic('users')}</div><div><h2>1. รายชื่อพนักงาน <span class="en">Employee roster</span></h2><p class="small muted" style="margin:0">${cfg?.employees?.length ? `บันทึกแล้ว ${cfg.employees.length} คน` : 'ข้อมูลตอนนี้เป็นตัวอย่าง (EX…) ให้อัปโหลดไฟล์รายชื่อจริง'}</p></div></div>
+    ${lockBar}
+    ${ed ? `<p class="small muted" style="margin:0 0 8px">อัปโหลด .xlsx / .csv ระบบหาคอลัมน์ <b>รหัส</b>, <b>ชื่อ</b> (และ นามสกุล ถ้าแยกคอลัมน์), <b>Batch</b> จากหัวตารางเอง และ<b>ใช้ Batch ตามไฟล์</b> (A/B, 1/2, “Batch 1”, “กลุ่ม A”) คนที่ช่อง Batch ว่างเท่านั้นที่ระบบแบ่งให้</p>
+    <div class="row" style="margin-bottom:10px"><label class="btn primary" for="file">${ic('up')}อัปโหลด Excel / CSV</label><input type="file" id="file" accept=".xlsx,.xls,.csv,.txt" hidden>
+      <button class="btn" data-act="dlRoster">${ic('dl')}ดาวน์โหลด Excel</button><button class="btn" data-act="addRow">${ic('user')}เพิ่มพนักงาน</button></div>
+    ${S.importNote ? `<p class="small" style="margin:0 0 8px">${S.importNote}</p>` : ''}` : ''}
+    ${!ed && list.length ? `<div class="row" style="margin-bottom:10px"><button class="btn" data-act="dlRoster">${ic('dl')}ดาวน์โหลดรายชื่อ Excel</button></div>` : ''}
+    ${rosterTable(list, ed)}
+    ${ed ? `<details style="margin-top:10px"><summary class="small">วางข้อมูลจาก Excel แทนการอัปโหลด · Paste instead</summary>
+      <pre class="code" style="margin-top:8px">รหัส,ชื่อ-นามสกุล,batch
+650123,สมชาย ใจดี,A
+650124,สมหญิง รักงาน,B</pre>
+      <textarea id="rosterTa" aria-label="วางรายชื่อพนักงาน" style="min-height:120px;margin-top:8px" placeholder="วางตารางจาก Excel ที่นี่"></textarea>
+      <button class="btn" data-act="parsePaste" style="margin-top:8px">${ic('check')}แปลงเป็นตาราง</button></details>
+    <div class="row" style="margin-top:12px"><button class="btn primary" data-act="saveRoster">${ic('check')}บันทึกรายชื่อ</button>${gen ? '<span class="small muted">เปลี่ยน Batch แล้ว ตารางจะย้ายคนนั้นไปเข้าวันของ Batch ใหม่ทันที</span>' : ''}</div>` : ''}
+  </div>
+  <div class="card"><div class="sec-h"><div class="badge-ic">${ic('sun')}</div><div><h2>2. วันหยุดนักขัตฤกษ์ ${YEAR+543} <span class="en">Thai public holidays ${YEAR}</span></h2><p class="small muted" style="margin:0">เฉพาะวันที่ตรงกับ จันทร์–ศุกร์ รวมวันหยุดชดเชย · ตรวจกับประกาศ ครม. อีกครั้ง${YEAR !== LEGACY_YEAR ? ' · <b>ปีนี้ใส่ให้เฉพาะวันหยุดวันที่ตายตัว ต้องเพิ่มวันพระ (มาฆบูชา วิสาขบูชา อาสาฬหบูชา เข้าพรรษา) เอง</b>' : ''}</p></div></div>
+    ${holEditor(holList, ed, gen)}
+  </div></div>
+`;
+}
+function yearCard() {
+  const opts = []; for (let y = YEAR_MIN; y <= YEAR_MAX; y++) { const c = S.cfgs[y]; const st = c?.pattern ? 'มีตารางแล้ว' : c ? 'บันทึกบางส่วน' : 'ยังไม่มีข้อมูล'; opts.push(`<option value="${y}" ${y===YEAR?'selected':''}>${y+543} · ${y} — ${st}</option>`); }
+  const saved = Object.keys(S.cfgs).map(Number).filter(y => S.cfgs[y]?.pattern).sort();
+  return `<div class="card"><div class="sec-h"><div class="badge-ic">${ic('cal')}</div><div><h2>ปีของตาราง <span class="en">Schedule year</span></h2><p class="small muted" style="margin:0">ข้อมูลแต่ละปี (รายชื่อ วันหยุด ตาราง และการแลกกะ) บันทึกแยกกัน เปลี่ยนปีแล้วกลับมาจะเห็นข้อมูลล่าสุดของปีนั้นทันที ไม่ต้องจัดตารางใหม่</p></div></div>
+    <div class="row"><label for="yearSel" class="small muted">ปี · Year</label><select id="yearSel" aria-label="เลือกปี · Select year">${opts.join('')}</select>
+    ${saved.length ? `<span class="small muted">ปีที่มีตารางแล้ว: ${saved.map(y => `<span class="pill num">${y+543}</span>`).join(' ')}</span>` : ''}</div></div>`;
+}
+function setYear(y) {
+  if (!(y >= YEAR_MIN && y <= YEAR_MAX) || y === YEAR) return;
+  YEAR = y; S.year = y; lsSet('rota.year', y);
+  S.cfg = S.cfgs[y] ? JSON.parse(JSON.stringify(S.cfgs[y])) : null;
+  S.sel = null; S.editMode = false; S.rosterDraft = null; S.draftHol = null; S.importNote = ''; S.holMonth = 'all';
+  S.month = new Date().getFullYear() === y ? new Date().getMonth() : 0;
+  render(); toast(S.cfg?.pattern ? `เปิดตารางปี ${y+543} (ข้อมูลล่าสุด)` : `ปี ${y+543} ยังไม่มีตาราง ตั้งค่ารายชื่อ/วันหยุดแล้วกดสร้างตาราง`);
+}
+function parseHol(t) { return t.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => { let m = l.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\s*(.*)$/); if (m) return {date: `${m[3]}-${pad(m[2])}-${pad(m[1])}`, name: m[4] || 'วันหยุด'}; m = l.match(/^(\d{4}-\d{2}-\d{2})\s*(.*)$/); return m ? {date: m[1], name: m[2] || 'วันหยุด'} : null; }).filter(Boolean); }
+function baseCfg() { return { year: YEAR, employees: [], holidays: defaultHolidays(YEAR), pattern: null, generatedAt: null, epoch: 0 }; }
+function validDraft() {
+  const list = (S.rosterDraft || []).map(e => ({ code: String(e.code).trim(), name: String(e.name).trim() || String(e.code).trim(), batch: e.batch === 'B' ? 'B' : 'A' })).filter(e => e.code);
+  const seen = new Set(), dup = [];
+  list.forEach(e => { if (seen.has(e.code)) dup.push(e.code); seen.add(e.code); });
+  if (!list.length) { toast('ยังไม่มีรายชื่อพนักงาน'); return null; }
+  if (dup.length) { toast('รหัสซ้ำ: ' + [...new Set(dup)].join(', ')); return null; }
+  return list;
+}
+async function saveRoster() {
+  const out = validDraft(); if (!out) return;
+  try {
+    if (S.cfg) await store.updateCfg({ employees: out }); else await store.setCfg({ ...baseCfg(), employees: out });
+    S.rosterDraft = null; S.importNote = '';
+    render(); toast(`บันทึก ${out.length} คนแล้ว · Saved`);
+  } catch (e) { writeFail(e); }
+}
+// ตรวจรายการวันหยุด: เอาเฉพาะวันที่ในปีนี้, ตัดวันซ้ำ, เรียงตามวันที่
+function cleanHol(list) {
+  const seen = new Set(), dup = [], out = []; let blank = 0;
+  (list || []).forEach(h => {
+    const d = String(h.date || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !d.startsWith(YEAR + '-')) { blank++; return; }
+    if (seen.has(d)) { dup.push(dmy(d)); return; } seen.add(d);
+    out.push({ date: d, name: String(h.name || '').trim() || 'วันหยุด' });
+  });
+  return { list: out.sort((a, b) => a.date.localeCompare(b.date)), dup, blank };
+}
+// ปรับตารางที่สร้างแล้ว: วันที่ถูกลบออกจากวันหยุดจะได้ Batch ที่ยังมีวันน้อยกว่า (เท่ากันให้สลับจากวันทำงานก่อนหน้า) วันอื่นไม่เปลี่ยน
+function patchPattern(pattern, holidays) {
+  const hol = new Set(holidays.map(h => h.date)), p = { ...pattern }, cnt = { A: 0, B: 0 };
+  Object.entries(p).forEach(([d, b]) => { if (!hol.has(d) && cnt[b] !== undefined) cnt[b]++; });
+  const added = [];
+  weekdays().forEach(d => {
+    if (hol.has(d) || p[d]) return;
+    const prev = Object.keys(p).filter(x => x < d && !hol.has(x)).sort().pop();
+    const b = cnt.A < cnt.B ? 'A' : cnt.B < cnt.A ? 'B' : (prev && p[prev] === 'A' ? 'B' : 'A');
+    p[d] = b; cnt[b]++; added.push(`${dmy(d)} → ${b}`);
+  });
+  return { pattern: p, added };
+}
+function holEditor(list, ed, gen) {
+  const mf = S.holMonth;
+  const rows = list.map((h, i) => ({ h, i })).filter(({ h }) => mf === 'all' || !h.date || +h.date.slice(5, 7) - 1 === +mf)
+    .sort((x, y) => (x.h.date || '9').localeCompare(y.h.date || '9'));
+  const dates = list.map(h => h.date);
+  const wd = d => { if (!d) return '<span class="muted small">เลือกวันที่</span>'; const w = dowOf(d); return `${TH_D[w]} <span class="num">${dmy(d)}</span>` +(w === 0 || w === 6 ? ' <span class="st">เสาร์–อาทิตย์ ไม่มีผล</span>' : '') + (dates.filter(x => x === d).length > 1 ? ' <span class="st" style="color:var(--danger)">ซ้ำ</span>' : ''); };
+  const body = rows.map(({ h, i }) => ed
+    ? `<tr><td class="l"><input type="date" id="h-date-${i}" data-hi="${i}" data-hf="date" value="${esc(h.date)}" min="${YEAR}-01-01" max="${YEAR}-12-31" aria-label="วันที่"></td><td class="l">${wd(h.date)}</td><td class="l"><input type="text" id="h-name-${i}" data-hi="${i}" data-hf="name" value="${esc(h.name)}" aria-label="ชื่อวันหยุด" style="width:100%;min-width:160px"></td><td><button class="iconbtn" data-act="delHol" data-hi="${i}" aria-label="ลบวันหยุด">${ic('x')}</button></td></tr>`
+    : `<tr><td class="l num">${dmy(h.date)}</td><td class="l">${TH_D[dowOf(h.date)]}</td><td class="l">${esc(h.name)}</td><td></td></tr>`).join('');
+  const nWeek = list.filter(h => h.date && dowOf(h.date) >= 1 && dowOf(h.date) <= 5).length;
+  return `<div class="row" style="margin-bottom:10px">
+      <label for="holMonth" class="small muted">เดือน · Month</label>
+      <select id="holMonth"><option value="all" ${mf==='all'?'selected':''}>ทุกเดือน · All</option>${TH_M.map((t, i) => `<option value="${i}" ${String(i)===String(mf)?'selected':''}>${t}</option>`).join('')}</select>
+      <span class="pill num">${list.length} วัน · ตรงวันทำงาน ${nWeek} วัน</span>
+      ${ed ? `<button class="btn" data-act="addHol">${ic('sun')}เพิ่มวันหยุด</button>` : ''}
+    </div>
+    <div class="tbl-wrap" style="max-height:420px"><table><thead><tr><th class="l">วันที่</th><th class="l">วัน</th><th class="l">ชื่อวันหยุด</th><th></th></tr></thead><tbody>${body || '<tr><td class="l" colspan="4">ไม่มีวันหยุดในเดือนนี้</td></tr>'}</tbody></table></div>
+    ${ed ? `<div class="row" style="margin-top:10px"><button class="btn primary" data-act="saveHol">${ic('check')}บันทึกวันหยุด</button><span class="small muted">${gen ? 'บันทึกแล้วตารางปีนี้ปรับทันที: วันที่เพิ่มเป็นวันหยุดจะไม่มีคนเข้า วันที่ลบออกจะได้ Batch ที่ยังมีวันน้อยกว่า' : 'วันหยุดที่ตรงเสาร์–อาทิตย์ไม่มีผลกับตาราง'}</span></div>` : ''}`;
+}
+async function saveHol() {
+  const { list: h, dup, blank } = cleanHol(S.draftHol || []);
+  const patch = { holidays: h }; let added = [];
+  if (S.cfg?.pattern) { const r = patchPattern(S.cfg.pattern, h); patch.pattern = r.pattern; added = r.added; }
+  try {
+    if (S.cfg) await store.updateCfg(patch); else await store.setCfg({ ...baseCfg(), holidays: h });
+    S.draftHol = null; render();
+    toast(`บันทึกวันหยุด ${h.length} วันแล้ว` + (added.length ? ` · เพิ่มวันทำงาน ${added.join(', ')}` : '') + (dup.length ? ` · ตัดวันซ้ำ ${dup.join(', ')}` : '') + (blank ? ` · ข้าม ${blank} แถวที่ไม่มีวันที่` : ''));
+  } catch (e) { writeFail(e); }
+}
+async function generate() {
+  if (S.cfg?.pattern) { toast('ตารางถูกสร้างไปแล้ว'); return; }
+  const out = validDraft(); if (!out) return;
+  const h = cleanHol(S.draftHol || S.cfg?.holidays || defaultHolidays(YEAR)).list;
+  const cfg = { ...(S.cfg || baseCfg()), employees: out, holidays: h, pattern: generatePattern(h), generatedAt: new Date().toISOString(), generatedBy: S.me.id, epoch: S.cfg?.epoch || 0 };
+  try { await store.setCfg(cfg); S.rosterDraft = null; S.draftHol = null; S.importNote = ''; S.tab = 'cal'; lsSet('rota.tab', 'cal'); render(); toast(`สร้างตารางปี ${YEAR+543} เรียบร้อย`); } catch (e) { writeFail(e); }
+}
+function applyImport(res, from) {
+  if (!res.out.length) { S.importNote = ''; toast('ไม่พบรายชื่อในไฟล์ ตรวจว่ามีคอลัมน์ รหัส และ ชื่อ'); render(); return; }
+  S.rosterDraft = res.out;
+  const nFile = res.out.filter(e => e.src === 'file').length, nAuto = res.out.length - nFile;
+  S.importNote = `${ic('check')} ${esc(from)}: ${res.out.length} คน · Batch จากไฟล์ <b>${nFile}</b> คน` + (nAuto ? ` · ช่อง Batch ว่าง ระบบแบ่งให้ <b>${nAuto}</b> คน` : '') + (!res.hasBatchCol ? ' · <b>ไม่พบคอลัมน์ Batch ในไฟล์</b>' : '') + (res.mapNote ? ` · ${esc(res.mapNote)}` : '') + (res.errs.length ? ` · <span style="color:var(--danger)">${esc(res.errs.join(', '))}</span>` : '') + ' — ตรวจแล้วกด “บันทึกรายชื่อ”';
+  render();
+}
+async function importFile(file) {
+  try {
+    let rows;
+    if (window.XLSX) {
+      const wb = /\.(csv|txt)$/i.test(file.name) ? XLSX.read(await file.text(), { type: 'string' }) : XLSX.read(await file.arrayBuffer());
+      const sheets = wb.SheetNames.map(n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' }));
+      rows = sheets.find(r => r.slice(0, 20).some(x => { const c = findCols(x.map(v => String(v).trim())); return c.code >= 0 && c.batch >= 0; })) || sheets[0];
+    } else rows = splitLines(await file.text());
+    applyImport(parseRoster(rows), file.name);
+  } catch { toast('อ่านไฟล์ไม่ได้ ลองบันทึกเป็น .xlsx หรือ .csv'); }
+}
+
+/* ---------- Excel export ---------- */
+// SheetJS รุ่นฟรีไม่เขียน freeze panes จึงแก้ XML ของแต่ละชีตเองก่อนบันทึก
+function freezeXlsx(buf, specs) {
+  try { return freezeXlsx0(buf, specs); } catch { return new Uint8Array(buf); } // ถ้าแก้ XML ไม่ได้ ให้ดาวน์โหลดไฟล์ปกติ (ไม่ freeze) แทนการล้ม
+}
+function freezeXlsx0(buf, specs) {
+  const z = XLSX.CFB.read(new Uint8Array(buf), { type: 'array' });
+  specs.forEach((sp, i) => {
+    if (!sp) return;
+    const path = z.FullPaths.find(x => x.endsWith(`xl/worksheets/sheet${i + 1}.xml`)); if (!path) return;
+    const f = XLSX.CFB.find(z, path);
+    const tl = String.fromCharCode(65 + sp.x) + (sp.y + 1);
+    const pane = `<pane${sp.x ? ` xSplit="${sp.x}"` : ''}${sp.y ? ` ySplit="${sp.y}"` : ''} topLeftCell="${tl}" activePane="${sp.x && sp.y ? 'bottomRight' : sp.y ? 'bottomLeft' : 'topRight'}" state="frozen"/>`;
+    const xml = new TextDecoder().decode(f.content).replace('<sheetView workbookViewId="0"/>', `<sheetView workbookViewId="0">${pane}</sheetView>`);
+    f.content = new TextEncoder().encode(xml); f.size = f.content.length;
+  });
+  return new Uint8Array(XLSX.CFB.write(z, { fileType: 'zip', type: 'array' }));
+}
+async function exportXlsx() {
+  if (!window.XLSX) { toast('ไลบรารี Excel ยังโหลดไม่เสร็จ'); return; }
+  const m = S.month, sc = S.sched, emM = empMap(), byBatchCode = (a, b) => (emM[a]?.batch || '').localeCompare(emM[b]?.batch || '') || byCode(a, b), em = [...S.cfg.employees].sort((a, b) => byBatchCode(a.code, b.code));
+  const days = sc.workdays.filter(d => +d.slice(5,7) === m+1);
+  const head = ['รหัส', 'ชื่อ-นามสกุล', 'Batch', ...days.map(d => `${TH_D[dowOf(d)]} ${dmy(d)}`), 'รวมวันเข้า', 'รวมวันลา'];
+  const rows = em.map(e => {
+    let n = 0, nl = 0; const cells = days.map(d => { const mp = sc.days[d]; if (onLeave(e.code, d)) { nl++; return 'ลา'; } if (!mp.has(e.code)) return ''; n++; const no = mp.get(e.code); return !no ? 'เข้า' : no.type === 'swap' ? `แทน ${no.for}` : 'ย้ายมา'; });
+    return [e.code, e.name, e.batch, ...cells, n, nl];
+  });
+  const title = [`ตารางเข้า Office ${TH_M[m]} ${YEAR+543} (${EN_M[m]} ${YEAR})`];
+  const ws1 = XLSX.utils.aoa_to_sheet([title, [], head, ...rows, [], ['หมายเหตุ: “เข้า” = เข้าตามตาราง, “แทน X” = เข้าแทนรหัส X, “ย้ายมา” = ย้ายวันมาเข้า, “ลา” = ลางานวันนั้น']]);
+  ws1['!cols'] = [{wch: 10}, {wch: 26}, {wch: 7}, ...days.map(() => ({wch: 18})), {wch: 10}, {wch: 10}];
+  ws1['!merges'] = [{s: {r: 0, c: 0}, e: {r: 0, c: Math.min(head.length - 1, 8)}}];
+  const daily = [['วันที่', 'วัน', 'Batch', 'จำนวนคนเข้า', 'รายชื่อ', 'หมายเหตุการแลก', 'ลา']];
+  days.forEach(d => { const mp = sc.days[d]; const lvs = leavesOn(d).map(l => l.code).sort(byBatchCode); const names = [...mp.keys()].sort(byBatchCode).map(c => `${c} ${emM[c]?.name || ''}${onLeave(c, d) ? ' (ลา)' : ''}`); const notes = [...mp.entries()].filter(x => x[1]).map(([c, no]) => no.type === 'swap' ? `${c} แทน ${no.for}` : `${c} ย้ายมาจาก ${dmy(no.from)}`); daily.push([dmy(d), TH_D[dowOf(d)], S.cfg.pattern[d], mp.size - [...mp.keys()].filter(c => onLeave(c, d)).length, names.join(', '), notes.join(', '), lvs.map(c => `${c} ${emM[c]?.name || ''}${mp.has(c) ? '' : ' (WFH)'}`).join(', ')]); });
+  const hols = (S.cfg.holidays || []).filter(h => +h.date.slice(5,7) === m+1); if (hols.length) { daily.push([]); daily.push(['วันหยุด']); hols.forEach(h => daily.push([dmy(h.date), TH_D[dowOf(h.date)], '-', 0, h.name])); }
+  const ws2 = XLSX.utils.aoa_to_sheet(daily); ws2['!cols'] = [{wch: 12}, {wch: 6}, {wch: 7}, {wch: 11}, {wch: 80}, {wch: 40}, {wch: 40}];
+  const log = [['เวลา', 'ประเภท', 'คน A', 'คน B', 'จากวัน', 'ไปวัน', 'สถานะ', 'บันทึกโดย']];
+  activeChanges().filter(c => [c.d1, c.d2].some(d => +d.slice(5,7) === m+1)).forEach(c => log.push([fmtTime(c.createdAt), c.type === 'swap' ? 'แลกกะ' : 'ย้ายวัน', `${c.a} ${empName(c.a, emM)}`, c.b ? `${c.b} ${empName(c.b, emM)}` : '', dmy(c.d1), dmy(c.d2), c.undone ? 'ยกเลิก' : sc.applied.has(c.id) ? 'มีผล' : 'ไม่มีผล', c.byCode]));
+  const ws3 = XLSX.utils.aoa_to_sheet(log); ws3['!cols'] = [{wch: 20}, {wch: 9}, {wch: 26}, {wch: 26}, {wch: 12}, {wch: 12}, {wch: 9}, {wch: 10}];
+  const wb = XLSX.utils.book_new();
+  const lvLog = [['วันที่ลา', 'วัน', 'รหัส', 'ชื่อ-นามสกุล', 'วันนั้น', 'สถานะ', 'บันทึกเมื่อ']];
+  S.leaves.filter(l => +l.year === YEAR && +l.date.slice(5,7) === m+1).sort((a, b) => a.date.localeCompare(b.date) || byCode(a.code, b.code)).forEach(l => lvLog.push([dmy(l.date), TH_D[dowOf(l.date)], l.code, empName(l.code, emM), sc.days[l.date]?.has(l.code) ? 'เข้า Office' : 'WFH', l.cancelled ? 'ยกเลิก' : 'ลา', fmtTime(l.createdAt)]));
+  const ws4 = XLSX.utils.aoa_to_sheet(lvLog); ws4['!cols'] = [{wch: 12}, {wch: 6}, {wch: 10}, {wch: 28}, {wch: 11}, {wch: 8}, {wch: 18}];
+  XLSX.utils.book_append_sheet(wb, ws1, `ตาราง ${TH_MS[m].replace(/\./g, '')}`); XLSX.utils.book_append_sheet(wb, ws2, 'รายวัน'); XLSX.utils.book_append_sheet(wb, ws3, 'การแลกกะ'); XLSX.utils.book_append_sheet(wb, ws4, 'การลา');
+  const fname = `office-schedule-${YEAR}-${pad(m+1)}.xlsx`;
+  // ตรึงหัวตาราง (Freeze Panes): ชีต 1 ตรึงแถวหัว 3 แถว + คอลัมน์ รหัส/ชื่อ/Batch, ชีต 2 ตรึงหัว + คอลัมน์วันที่, ชีต 3 ตรึงหัว
+  const blob = new Blob([freezeXlsx(XLSX.write(wb, {bookType: 'xlsx', type: 'array'}), [{x: 3, y: 3}, {x: 1, y: 1}, {x: 0, y: 1}, {x: 0, y: 1}])]);
+  await saveBlob(fname, blob);
+}
+async function saveBlob(fname, blob) {
+  if (S.dl) {
+    try { await S.dl.save({ filename: fname, data: blob }); toast('บันทึกไฟล์แล้ว · Saved'); }
+    catch (e) { if (e?.code !== 'declined') toast('ดาวน์โหลดไม่สำเร็จ (' + (e?.code || 'error') + ')'); }
+  } else if (!window.claude) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; a.click(); }
+  else toast('หน้านี้ดาวน์โหลดไฟล์ไม่ได้ในมุมมองนี้');
+}
+
+// ดาวน์โหลดรายชื่อพนักงาน (รูปแบบเดียวกับไฟล์ที่อัปโหลดได้: รหัส, ชื่อ-นามสกุล, batch)
+async function exportRoster() {
+  if (!window.XLSX) { toast('ไลบรารี Excel ยังโหลดไม่เสร็จ'); return; }
+  const list = (rosterEditable() && S.rosterDraft ? S.rosterDraft : (S.cfg?.employees || [])).filter(e => String(e.code || '').trim());
+  if (!list.length) { toast('ยังไม่มีรายชื่อพนักงาน'); return; }
+  const rows = [...list].sort((a, b) => (a.batch || '').localeCompare(b.batch || '') || byCode(a.code, b.code)).map(e => [String(e.code).trim(), String(e.name || '').trim(), e.batch === 'B' ? 'B' : 'A']);
+  const ws = XLSX.utils.aoa_to_sheet([['รหัส', 'ชื่อ-นามสกุล', 'batch'], ...rows]);
+  ws['!cols'] = [{wch: 10}, {wch: 34}, {wch: 7}];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'รายชื่อ');
+  await saveBlob(`office-roster-${YEAR}.xlsx`, new Blob([freezeXlsx(XLSX.write(wb, {bookType: 'xlsx', type: 'array'}), [{x: 0, y: 1}])]));
+}
+
+/* ---------- รหัสผ่านส่วนตัว: เปลี่ยน “ฉันคือ” ต้องใส่รหัสของคนนั้น ---------- */
+const PIN_ADMIN = '580072'; // แพร: admin หลัก ถอดออกไม่ได้ (กันระบบไม่มี admin)
+const adminCodes = () => [...new Set([PIN_ADMIN, ...((S.admins?.codes) || [])])];
+const isAdminCode = c => adminCodes().includes(c);
+const isPinAdmin = () => !!S.me.code && isAdminCode(S.me.code);
+const isOwner = () => S.me.code === PIN_ADMIN; // กำหนดสิทธิ admin ได้เฉพาะ 580072
+const showAdminTab = () => isOwner() || can('resetPin') || can('generate'); // admin ที่มีสิทธิล้างรหัส เห็นแท็บ Admin เฉพาะส่วนล้างรหัส
+const PERMS = [
+  ['swapOthers', 'แลกกะ / ย้ายวันแทนคนอื่น', 'เลือกชื่อใครก็ได้ในปฏิทินแล้วแลกกะหรือย้ายวันให้ (ปกติแลกได้เฉพาะชื่อตัวเอง)'],
+  ['leaveOthers', 'ลา / ยกเลิกการลาแทนคนอื่น', 'บันทึกลาให้พนักงานคนอื่น และยกเลิกการลาของทุกคน'],
+  ['undoAny', 'ยกเลิก (Undo) รายการของทุกคน', 'กด Undo รายการแลกกะของคนอื่นได้ (ทุกคนยกเลิกรายการของตัวเองย้อนหลังได้ภายในเดือนนั้นอยู่แล้ว)'],
+  ['viewAll', 'ดูประวัติของทุกคน', 'แท็บ ประวัติ แสดงการแลกกะและการลาของพนักงานทุกคน'],
+  ['pastMonths', 'แก้ไขเดือนย้อนหลัง (โหมดดูอย่างเดียว)', 'แลกกะ ย้ายวัน ลา และ Undo ในเดือนที่ผ่านมาแล้วได้'],
+  ['generate', 'สร้างตาราง / ล้างการแลกกะทั้งหมด', 'เห็นการ์ด “สร้างตารางอัตโนมัติ” ในแท็บ Admin (ยังต้องกด “แก้ไข” ใส่รหัสก่อนกดปุ่ม)'],
+  ['resetPin', 'ล้างรหัสผ่านให้คนที่ลืม', 'เห็นการ์ด “ล้างรหัส” ในแท็บ Admin'],
+];
+const permsOf = c => (S.admins?.perms || {})[c] || {};
+const hasPerm = (c, p) => c === PIN_ADMIN || (isAdminCode(c) && permsOf(c)[p] !== false); // admin หลักทำได้ทุกอย่างเสมอ รวมสิทธิที่เพิ่มในอนาคต // admin ใหม่ได้ทุกสิทธิเป็นค่าเริ่มต้น
+function can(p) { return !!S.me.code && hasPerm(S.me.code, p); }
+function adminCard() {
+  if (!can('resetPin')) return '';
+  const others = (S.cfg?.employees || []).filter(e => e.code !== S.me.code && pinOf(e.code)).sort((a, b) => byCode(a.code, b.code));
+  return `<div class="card"><div class="sec-h"><div class="badge-ic" style="background:var(--s-soft);color:var(--s-deep)">${ic('shield')}</div><div><h2>ล้างรหัสให้คนที่ลืม <span class="en">Password reset · admin</span></h2><p class="small muted" style="margin:0">ล้างแล้วรหัสจะกลับเป็นรหัสพนักงาน เจ้าของชื่อเปลี่ยนใหม่ได้เองที่แท็บ ตั้งค่า</p></div></div>
+    ${others.length ? `<div class="hist">${others.map(e => `<div class="hrow"><span class="txt">${esc(e.code)} ${esc(e.name)}</span><button type="button" class="btn danger" data-pin-reset="${esc(e.code)}">${ic('undo')}ล้างรหัส</button></div>`).join('')}</div>` : '<p class="small muted" style="margin:0">ยังไม่มีใครเปลี่ยนรหัส (ทุกคนใช้รหัสพนักงาน)</p>'}</div>`;
+}
+// ส่วนที่ 3 อยู่ในแท็บ Admin: ต้องมีสิทธิ “สร้างตาราง” และยังต้องกด “แก้ไข” ใส่รหัสก่อนกดปุ่ม
+function genCard() {
+  if (!can('generate')) return '';
+  const cfg = S.cfg, gen = !!cfg?.pattern, ro = !S.editMode;
+  if (S.editMode) { ensureDraft(); if (!S.draftHol) S.draftHol = (cfg?.holidays || defaultHolidays(YEAR)).map(h => ({ date: h.date, name: h.name })); }
+  const holList = S.editMode ? S.draftHol : (cfg?.holidays || []);
+  const pv = gen ? [] : Object.values(generatePattern(cleanHol(holList).list));
+  return `  <div class="card"><div class="sec-h"><div class="badge-ic">${ic('wand')}</div><div><h2>สร้างตารางอัตโนมัติ ${YEAR+543} <span class="en">Generate rotation (one time only)</span></h2><p class="small muted" style="margin:0">ใช้รายชื่อและวันหยุดจากแท็บ ตั้งค่า (ส่วนที่ 1–2)</p></div></div>
+    ${ro ? `<div class="row" style="margin-bottom:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:8px;background:var(--surface-2)"><span class="small">ปุ่มในส่วนนี้ล็อกอยู่ ต้องใส่รหัสผู้ดูแลก่อน · Locked</span><button class="btn primary" data-act="unlock">${ic('wand')}แก้ไข</button></div>` : ''}
+    ${gen ? `<p class="ok-line">${ic('check')} สร้างตารางแล้วเมื่อ ${esc(fmtTime(cfg.generatedAt))} — ระบบจะไม่สร้างทับอีก</p>
+      <p class="muted">Batch A ${Object.values(cfg.pattern).filter(x=>x==='A').length} วัน · Batch B ${Object.values(cfg.pattern).filter(x=>x==='B').length} วัน. ถ้าต้องแก้รายชื่อ Batch หรือเพิ่ม/ลดวันหยุด ให้ไปแท็บ ตั้งค่า กด “แก้ไข” แล้วกดบันทึก ระบบจะปรับตารางปีนี้เฉพาะวันที่เปลี่ยน ไม่สร้างใหม่ทั้งปี</p>
+      <div class="row"><button class="btn danger" data-act="askReset" ${ro?'disabled':''}>${ic('undo')}ล้างการแลกกะทั้งหมด (กลับไปตารางตั้งต้น)</button></div>`
+    : `<p class="muted">ระบบจะจัดวันทำงาน (จันทร์–ศุกร์ ไม่รวมวันหยุด) ให้ Batch A และ B สลับกันวันเว้นวันต่อเนื่องทั้งปี โดยแต่ละคนอยู่ Batch ตามไฟล์ ตัวอย่างจากข้อมูลตอนนี้: <b class="num">${pv.length} วันทำงาน → A ${pv.filter(x=>x==='A').length} / B ${pv.filter(x=>x==='B').length}</b></p>
+      <div class="row"><button class="btn primary" data-act="generate" ${ro?'disabled':''}>${ic('wand')}สร้างตารางอัตโนมัติ</button><span class="small muted">กดครั้งเดียว ระบบบันทึกรายชื่อและวันหยุดจากแท็บ ตั้งค่า ไปพร้อมกัน</span></div>`}
+  </div>`;
+}
+// เข้าแท็บ Admin ต้องใส่รหัสผ่านของตัวเองทุกครั้ง (ออกจากแท็บหรือเปลี่ยนชื่อ = ล็อกใหม่)
+function adminGate() {
+  return `<div class="card empty">${ic('lock')}<h2>ยืนยันรหัสผ่านก่อนเข้า Admin <span class="en">Password required</span></h2>
+  <p class="muted" style="margin:0">ต้องใส่รหัสผ่านของ ${esc(S.me.code)} ${esc(empName(S.me.code))} ทุกครั้งที่เข้าแท็บนี้</p>
+  <button class="btn primary" data-act="adminAuth">${ic('lock')}ใส่รหัสผ่าน</button></div>`;
+}
+function askAdminAuth() {
+  modal(`<form id="adminAuthForm" style="display:grid;gap:10px"><h2>${ic('shield')} เข้าแท็บ Admin <span class="en">Admin access</span></h2>
+   <p style="margin:0"><b>${esc(S.me.code)} ${esc(empName(S.me.code))}</b></p>
+   ${pwInput('adminPw', 'รหัสผ่านของคุณ · Your password', 'current-password')}
+   <p id="adminPwErr" class="small" style="margin:0;color:var(--danger)" hidden>รหัสผ่านไม่ถูกต้อง · Wrong password</p>
+   <p class="small muted" style="margin:0">${pinOf(S.me.code) ? 'รหัสที่คุณตั้งไว้ในแท็บ ตั้งค่า' : 'ยังไม่เคยเปลี่ยนรหัส: ใช้รหัสพนักงาน'}</p>
+   <div class="modal-actions"><button type="button" class="btn" data-close="1">ยกเลิก</button><button type="submit" class="btn primary">${ic('check')}เข้า Admin</button></div></form>`);
+  document.getElementById('adminPw')?.focus();
+}
+function vAdmin() {
+  if (!S.adminOk) return adminGate();
+  if (!isOwner()) return genCard() + adminCard();
+  const em = empMap(), list = adminCodes().sort(byCode);
+  const cand = (S.cfg?.employees || []).filter(e => !isAdminCode(e.code)).sort((a, b) => String(a.batch).localeCompare(String(b.batch)) || byCode(a.code, b.code));
+  const rows = list.map(c => {
+    const main = c === PIN_ADMIN;
+    const boxes = main ? `<p class="small muted" style="margin:0">${ic('shield')} admin หลักได้ทุกสิทธิเสมอ รวมถึงสิทธิที่จะเพิ่มในอนาคต ไม่ต้องตั้งค่า</p>` : PERMS.map(([k, t]) => `<label><input type="checkbox" data-perm="${esc(c)}|${k}" ${hasPerm(c, k) ? 'checked' : ''}>${esc(t)}</label>`).join('');
+    return `<div class="hrow"><span class="txt"><b>${esc(c)}</b> ${esc(em[c]?.name || '')}${c === S.me.code ? ' <span class="small muted">(คุณ)</span>' : ''}${pinOf(c) ? '' : ' <span class="st">ยังใช้รหัสเริ่มต้น</span>'}</span>${main ? '<span class="st ok">admin หลัก · ทุกสิทธิเสมอ</span>' : `<button type="button" class="btn danger" data-admin-del="${esc(c)}">${ic('x')}ถอดสิทธิ</button>`}<div class="perms">${boxes}</div></div>`;
+  }).join('');
+  return `<div class="card"><div class="sec-h"><div class="badge-ic" style="background:var(--me-soft);color:var(--me-deep)">${ic('shield')}</div><div><h2>สิทธิของ admin <span class="en">Admin permissions</span></h2><p class="small muted" style="margin:0">ส่วนกำหนดสิทธิเห็นได้เฉพาะ ${esc(PIN_ADMIN)} · ติ๊กเพื่อกำหนดว่า admin แต่ละคนทำอะไรได้ บันทึกทันทีที่ติ๊ก</p></div></div>
+    <h3 style="font-size:15px;margin-bottom:8px">สิทธิที่ให้ได้ <span class="en">Permissions</span></h3>
+    <ul class="perm-list small">${PERMS.map(([, t, d]) => `<li><b>${esc(t)}</b> — ${esc(d)}</li>`).join('')}</ul>
+    <p class="small muted" style="margin:10px 0 0">${ic('lock')} ส่วนที่ตั้งรหัสผ่านไว้ยังต้องใส่รหัสเหมือนเดิมทุกคน: การเปลี่ยน “ฉันคือ” เป็นชื่อคนอื่น และปุ่ม “แก้ไข” ในแท็บ ตั้งค่า</p></div>
+  <div class="card"><div class="sec-h"><div class="badge-ic" style="background:var(--s-soft);color:var(--s-deep)">${ic('users')}</div><div><h2>รายชื่อ admin <span class="en">${list.length} คน</span></h2><p class="small muted" style="margin:0">admin ใหม่ได้ทุกสิทธิเป็นค่าเริ่มต้น เอาติ๊กออกเพื่อจำกัด · ${esc(PIN_ADMIN)} เป็น admin หลัก ได้ทุกสิทธิเสมอ ถอดหรือลดสิทธิไม่ได้</p></div></div>
+    <div class="hist">${rows}</div>
+    <div class="row" style="margin-top:12px"><label for="adminAdd" class="small muted">เพิ่ม admin · Add</label><select id="adminAdd"><option value="">— เลือกพนักงาน —</option>${cand.map(e => `<option value="${esc(e.code)}">${esc(e.code)} · ${esc(e.name)} (${esc(e.batch)})</option>`).join('')}</select><button type="button" class="btn primary" data-act="adminAdd">${ic('check')}เพิ่ม</button></div>
+    <p class="small muted" style="margin:8px 0 0">admin ควรเปลี่ยนรหัสของตัวเองทันที เพราะรหัสเริ่มต้นคือรหัสพนักงานที่ทุกคนเห็น</p></div>${genCard()}${adminCard()}${backupCard()}`;
+}
+function backupCard() {
+  return `<div class="card"><div class="sec-h"><div class="badge-ic">${ic('dl')}</div><div><h2>สำรอง / นำเข้าข้อมูล <span class="en">Backup &amp; restore</span></h2><p class="small muted" style="margin:0">เห็นได้เฉพาะ ${esc(PIN_ADMIN)} · ดาวน์โหลดสำรองข้อมูลทั้งหมดเป็นไฟล์ .json หรือนำเข้าไฟล์ backup (ใช้ตอนย้ายระบบครั้งแรก)</p></div></div>
+    <div class="row"><button type="button" class="btn" data-act="backupDl">${ic('dl')}ดาวน์โหลด backup</button>
+    <label class="btn danger" for="restoreFile">${ic('up')}นำเข้าไฟล์ backup</label><input type="file" id="restoreFile" accept=".json,application/json" hidden></div>
+    <p class="small muted" style="margin:8px 0 0">นำเข้าแล้วข้อมูลที่มี id เดียวกันจะถูกเขียนทับ ข้อมูลอื่นที่ไม่มีในไฟล์ยังอยู่เหมือนเดิม</p></div>`;
+}
+async function backupDl() {
+  try { const cols = await store.dump(); const blob = new Blob([JSON.stringify({ app: 'office-rota', format: 1, exportedAt: new Date().toISOString(), collections: cols }, null, 1)], { type: 'application/json' });
+    await saveBlob(`office-rota-backup-${todayISO()}.json`, blob); } catch (e) { writeFail(e); }
+}
+async function restoreFile(file) {
+  let data; try { data = JSON.parse(await file.text()); } catch { toast('ไฟล์นี้ไม่ใช่ JSON'); return; }
+  if (data?.app !== 'office-rota' || !data.collections) { toast('ไฟล์นี้ไม่ใช่ backup ของตารางเข้า Office'); return; }
+  const n = BACKUP_COLS.reduce((t, c) => t + Object.keys(data.collections[c] || {}).length, 0);
+  modal(`<h2>${ic('up')} นำเข้าข้อมูล? <span class="en">Restore</span></h2><p style="margin:0">ไฟล์ ${esc(file.name)} มี ${n} รายการ (ส่งออกเมื่อ ${esc(data.exportedAt ? fmtTime(data.exportedAt) : '-')})</p>
+   <p class="small muted" style="margin:0">ข้อมูลที่มี id เดียวกันในระบบจะถูกเขียนทับ ทุกคนที่เปิดหน้าเว็บจะเห็นทันที</p>
+   <div class="modal-actions"><button class="btn" data-close="1">ยกเลิก</button><button class="btn danger" data-act="restoreOk">${ic('check')}นำเข้า</button></div>`);
+  pendingRestore = data.collections;
+}
+let pendingRestore = null;
+async function saveAdmins(codes, perms = S.admins?.perms || {}) {
+  const keep = [...new Set(codes)].filter(c => c !== PIN_ADMIN), pm = {}; keep.forEach(c => { if (perms[c]) pm[c] = perms[c]; });
+  try { await store.setAdmins({ codes: keep, perms: pm, updatedAt: new Date().toISOString(), by: S.me.id, byCode: S.me.code }); render(); return true; }
+  catch (e) { writeFail(e); return false; }
+}
+const pinId = code => String(code).replace(/[^A-Za-z0-9_-]/g, '-');
+const pinOf = code => { const p = S.pins[pinId(code)]; return p && p.hash ? p : null; };
+const pinHash = (code, salt, pw) => sha256(`${salt}:${code}:${pw}`);
+// รหัสเริ่มต้นของทุกคน = รหัสพนักงาน จนกว่าจะเปลี่ยนเอง (admin ล้างรหัสแล้วจะกลับมาเป็นรหัสพนักงาน)
+async function checkPw(code, pw) { const p = pinOf(code); if (!p) return pw === String(code); try { return (await pinHash(code, p.salt, pw)) === p.hash; } catch { return false; } }
+const newSalt = () => [...crypto.getRandomValues(new Uint8Array(12))].map(x => x.toString(16).padStart(2, '0')).join('');
+const pwInput = (id, label, ac) => `<label for="${id}" class="small muted">${label}</label><input type="password" id="${id}" autocomplete="${ac}" style="width:100%">`;
+function setMe(code) {
+  S.adminOk = false; S.editMode = false;
+  S.me.code = code; lsSet('rota.me', code); S.sel = null;
+  room?.presence({ code: code || null }).catch(() => {}); render();
+}
+function askSwitch(code) {
+  renderMe(); // คืนค่าช่องเลือกไว้ก่อน จนกว่าจะใส่รหัสถูก
+  if (!code) { setMe(''); return; }
+  modal(`<form id="switchForm" data-code="${esc(code)}" style="display:grid;gap:10px"><h2>${ic('user')} ยืนยันตัวตน <span class="en">Switch user</span></h2>
+   <p style="margin:0"><b>${esc(code)} ${esc(empName(code))}</b></p>
+   ${pwInput('switchPw', 'รหัสผ่านของคนนี้ · Password', 'current-password')}
+   <p id="switchErr" class="small" style="margin:0;color:var(--danger)" hidden>รหัสผ่านไม่ถูกต้อง · Wrong password</p>
+   <p class="small muted" style="margin:0">${pinOf(code) ? 'ลืมรหัส? ให้ admin ล้างรหัสให้ (กลับเป็นรหัสพนักงาน)' : 'ยังไม่เคยเปลี่ยนรหัส: รหัสเริ่มต้นคือรหัสพนักงาน'}</p>
+   <div class="modal-actions"><button type="button" class="btn" data-close="1">ยกเลิก</button><button type="submit" class="btn primary">${ic('check')}ตกลง</button></div></form>`);
+  document.getElementById('switchPw')?.focus();
+}
+function pinCard() {
+  const code = S.me.code, has = code && pinOf(code);
+  const others = (S.cfg?.employees || []).filter(e => e.code !== S.me.code && pinOf(e.code)).sort((a, b) => byCode(a.code, b.code));
+  const body = !code
+    ? `<p class="muted" style="margin:0">เลือก “ฉันคือ” ที่มุมขวาบนก่อน แล้วค่อยตั้งรหัสผ่านของคุณ</p>`
+    : `<form id="pinForm" style="display:grid;gap:8px;max-width:360px">
+       <p style="margin:0"><b>${esc(code)} ${esc(empName(code))}</b> · <span class="st ${has ? 'ok' : ''}">${has ? 'เปลี่ยนรหัสแล้ว' : 'ใช้รหัสเริ่มต้น (รหัสพนักงาน) · ควรเปลี่ยน'}</span></p>
+       ${pwInput('pinOld', has ? 'รหัสปัจจุบัน · Current' : 'รหัสปัจจุบัน (รหัสพนักงานของคุณ) · Current', 'current-password')}
+       ${pwInput('pinNew', 'รหัสใหม่ (อย่างน้อย 4 ตัว) · New', 'new-password')}
+       ${pwInput('pinNew2', 'ยืนยันรหัสใหม่ · Confirm', 'new-password')}
+       <p id="pinErr" class="small" style="margin:0;color:var(--danger)" hidden></p>
+       <div class="row"><button type="submit" class="btn primary">${ic('check')}เปลี่ยนรหัส</button></div></form>`;
+  const admin = '';
+  return `<div class="card"><div class="sec-h"><div class="badge-ic">${ic('user')}</div><div><h2>รหัสผ่านของฉัน <span class="en">My password</span></h2><p class="small muted" style="margin:0">คนที่จะเลือกชื่อคุณใน “ฉันคือ” ต้องใส่รหัสนี้ก่อน · รหัสเริ่มต้นคือรหัสพนักงาน ซึ่งทุกคนเห็นในปฏิทิน จึงควรเปลี่ยนเป็นรหัสของคุณเอง · ลืมรหัสให้ admin ล้างให้</p></div></div>${body}${admin}</div>`;
+}
+document.addEventListener('submit', async ev => {
+  if (ev.target.id === 'adminAuthForm') {
+    ev.preventDefault();
+    const pw = document.getElementById('adminPw');
+    if (!(await checkPw(S.me.code, pw.value))) { document.getElementById('adminPwErr').hidden = false; pw.select(); return; }
+    modal(''); S.adminOk = true; S.editMode = false; render();
+    return;
+  }
+  if (ev.target.id === 'switchForm') {
+    ev.preventDefault();
+    const code = ev.target.dataset.code, pw = document.getElementById('switchPw');
+    const ok = await checkPw(code, pw.value);
+    if (!ok) { document.getElementById('switchErr').hidden = false; pw.select(); return; }
+    modal(''); setMe(code); toast(`เปลี่ยนเป็น ${code} แล้ว`);
+  }
+  if (ev.target.id === 'pinForm') {
+    ev.preventDefault();
+    const code = S.me.code, cur = pinOf(code), er = document.getElementById('pinErr'), v = id => document.getElementById(id)?.value || '';
+    const fail = m => { er.textContent = m; er.hidden = false; };
+    if (!(await checkPw(code, v('pinOld')))) return fail(cur ? 'รหัสปัจจุบันไม่ถูกต้อง' : 'รหัสปัจจุบันไม่ถูกต้อง (รหัสเริ่มต้นคือรหัสพนักงานของคุณ)');
+    if (v('pinNew') === String(code)) return fail('รหัสใหม่ต้องไม่ใช่รหัสพนักงาน');
+    if (v('pinNew').length < 4) return fail('รหัสใหม่ต้องมีอย่างน้อย 4 ตัว');
+    if (v('pinNew') !== v('pinNew2')) return fail('รหัสใหม่สองช่องไม่ตรงกัน');
+    const salt = newSalt();
+    try { await store.setPin(pinId(code), { code, salt, hash: await pinHash(code, salt, v('pinNew')), setAt: new Date().toISOString(), by: S.me.id }); toast('เปลี่ยนรหัสแล้ว'); render(); }
+    catch (e) { writeFail(e); }
+  }
+});
+
+// ถามรหัสผ่านก่อนเปิดโหมดแก้ไข (เก็บเป็นค่า SHA-256 ไม่เก็บรหัสจริงในหน้า)
+const UNLOCK_HASH = '0519feddb811c2d2e437fa8fd432982c18e822d102c081b69888f697d2f6872f';
+async function sha256(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+function askUnlock() {
+  modal(`<form id="unlockForm" style="display:grid;gap:14px"><h2>${ic('wand')} ใส่รหัสผ่านเพื่อแก้ไข <span class="en">Password required</span></h2>
+   <label for="unlockPw" class="small muted">รหัสผ่าน · Password</label>
+   <input type="password" id="unlockPw" autocomplete="current-password" style="font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:38px">
+   <p id="unlockErr" class="small" style="margin:0;color:var(--danger)" hidden>รหัสผ่านไม่ถูกต้อง · Wrong password</p>
+   <div class="modal-actions"><button type="button" class="btn" data-close="1">ยกเลิก</button><button type="submit" class="btn primary">${ic('check')}ตกลง</button></div></form>`);
+  document.getElementById('unlockPw')?.focus();
+}
+document.addEventListener('submit', ev => {
+  if (ev.target.id !== 'leaveForm') return;
+  ev.preventDefault();
+  const who = document.getElementById('leaveWho')?.value || S.me.code;
+  const d = document.getElementById('leaveDate').value, why = leaveBlock(who, d), er = document.getElementById('leaveErr');
+  if (why) { er.textContent = why; er.hidden = false; return; }
+  askLeave(d, who);
+});
+document.addEventListener('submit', async ev => {
+  if (ev.target.id !== 'unlockForm') return;
+  ev.preventDefault();
+  const pw = document.getElementById('unlockPw');
+  let ok = false; try { ok = (await sha256(pw.value)) === UNLOCK_HASH; } catch {}
+  if (!ok) { document.getElementById('unlockErr').hidden = false; pw.select(); return; }
+  modal(''); S.editMode = true; S.rosterDraft = S.cfg?.employees?.length ? cloneEmps(S.cfg.employees) : null; S.draftHol = null; render(); toast('เปิดโหมดแก้ไขแล้ว · Edit mode on');
+});
+
+/* ---------- events ---------- */
+document.addEventListener('click', async ev => {
+  const t = ev.target;
+  if (t.closest('[data-close]') && (t.dataset.close || t.closest('button[data-close]'))) { if (t.classList.contains('overlay') || t.closest('button[data-close]')) { modal(''); return; } }
+  const tab = t.closest('[data-tab]'); if (tab) { if (curTab() === 'admin' || tab.dataset.tab === 'admin') { S.adminOk = false; S.editMode = false; } S.tab = tab.dataset.tab; S.sel = null; lsSet('rota.tab', S.tab); render(); if (curTab() === 'admin') askAdminAuth(); return; }
+  const mon = t.closest('[data-mon]'); if (mon) { S.month = (S.month + +mon.dataset.mon + 12) % 12; render(); return; }
+  const ps = t.closest('[data-psort]'); if (ps) { const k = ps.dataset.psort; S.psort = S.psort.k === k ? {k, dir: -S.psort.dir} : {k, dir: ['code', 'name', 'batch'].includes(k) ? 1 : -1}; lsSet('rota.psort', S.psort); render(); document.querySelector(`[data-psort="${k}"]`)?.focus(); return; }
+  const ad = t.closest('[data-admin-del]'); if (ad && isOwner()) { const c = ad.dataset.adminDel; if (c === PIN_ADMIN) return; if (confirmReset === 'adm:' + c) { confirmReset = null; if (await saveAdmins(adminCodes().filter(x => x !== c))) toast(`ถอดสิทธิ admin ของ ${c} แล้ว`); } else { confirmReset = 'adm:' + c; ad.textContent = 'กดอีกครั้งเพื่อยืนยัน'; } return; }
+  if (t.closest('[data-goto-now]')) { const now = new Date(); if (now.getFullYear() === YEAR) S.month = now.getMonth(); else setYear(now.getFullYear()); render(); return; }
+  const hv = t.closest('[data-hv]'); if (hv) { S.histView = hv.dataset.hv; lsSet('rota.hist', S.histView); render(); return; }
+  const pb = t.closest('[data-pb]'); if (pb) { S.personBatch = pb.dataset.pb; render(); return; }
+  const cf = t.closest('[data-confirm]'); if (cf) { const d = cf.dataset; commit(d.confirm, d.a, d.b, d.d1, d.d2); return; }
+  const pr = t.closest('[data-pin-reset]'); if (pr && can('resetPin')) { const c = pr.dataset.pinReset; if (confirmReset === c) { confirmReset = null; try { await store.setPin(pinId(c), { code: c, hash: null, resetAt: new Date().toISOString(), by: S.me.id }); toast(`ล้างรหัสของ ${c} แล้ว`); render(); } catch (e) { writeFail(e); } } else { confirmReset = c; pr.textContent = 'กดอีกครั้งเพื่อยืนยัน'; } return; }
+  const lo = t.closest('[data-leave-ok]'); if (lo) { takeLeave(lo.dataset.leaveOk, lo.dataset.leaveCode || S.me.code); return; }
+  const lc = t.closest('[data-leave-cancel]'); if (lc) { cancelLeave(lc.dataset.leaveCancel); return; }
+  const la = t.closest('[data-leave-ask]'); if (la) { const l = S.leaves.find(x => x.id === la.dataset.leaveAsk); if (l) askCancelLeave(l); return; }
+  const un = t.closest('[data-undo]'); if (un) { const c = S.changes.find(x => x.id === un.dataset.undo); if (c && canUndo(c)[0]) { try { await store.updateChange(c.id, { undone: true, undoneAt: new Date().toISOString() }); toast('ยกเลิกรายการแล้ว · Undone'); } catch (e) { writeFail(e); } } return; }
+  const act = t.closest('[data-act]');
+  if (act) {
+    const a = act.dataset.act;
+    if (a === 'cancelSel') { S.sel = null; render(); }
+    if (a === 'leaveSel' && S.sel) askLeave(S.sel.date, S.sel.code);
+    if (a === 'leaveMenu') leaveMenu();
+    if (a === 'adminAdd' && isOwner()) { const c = document.getElementById('adminAdd')?.value; if (!c) { toast('เลือกพนักงานก่อน'); return; } if (await saveAdmins([...adminCodes(), c])) toast(`เพิ่ม ${c} เป็น admin แล้ว`); }
+    if (a === 'xlsx') exportXlsx();
+    if (a === 'dlRoster') exportRoster();
+    if (a === 'saveRoster') saveRoster();
+    if (a === 'saveHol') saveHol();
+    if (a === 'generate' && can('generate')) generate();
+    if (a === 'unlock') askUnlock();
+    if (a === 'adminAuth') askAdminAuth();
+    if (a === 'backupDl' && isOwner() && S.adminOk) backupDl();
+    if (a === 'restoreOk' && isOwner() && S.adminOk && pendingRestore) { const cols = pendingRestore; pendingRestore = null; modal(''); try { const n = await store.restore(cols); toast(`นำเข้าข้อมูลแล้ว ${n} รายการ`); } catch (e) { writeFail(e); } }
+    if (a === 'lock') { S.editMode = false; S.rosterDraft = null; S.draftHol = null; S.importNote = ''; render(); }
+    if (a === 'addHol') { const m = S.holMonth === 'all' ? null : +S.holMonth; S.draftHol.push({ date: m === null ? '' : `${YEAR}-${pad(m+1)}-01`, name: '' }); render(); document.getElementById('h-date-' + (S.draftHol.length - 1))?.focus(); }
+    if (a === 'delHol') { S.draftHol.splice(+act.dataset.hi, 1); render(); }
+    if (a === 'addRow') { ensureDraft(); S.rosterDraft.push({ code: '', name: '', batch: 'A', src: 'manual' }); render(); const i = S.rosterDraft.length - 1; document.getElementById('r-code-' + i)?.focus(); }
+    if (a === 'delRow') { S.rosterDraft.splice(+act.dataset.ri, 1); render(); }
+    if (a === 'parsePaste') { const t = document.getElementById('rosterTa').value; if (t.trim()) applyImport(parseRoster(splitLines(t)), 'ข้อมูลที่วาง'); }
+    if (a === 'askReset' && can('generate')) modal(`<h2>ล้างการแลกกะทั้งหมด?</h2><p style="margin:0">ตารางจะกลับไปเป็นแบบตั้งต้น (สลับวันเว้นวัน) ประวัติเดิมจะถูกซ่อน ทุกคนจะเห็นผลทันที</p><div class="modal-actions"><button class="btn" data-close="1">ยกเลิก</button><button class="btn danger" data-act="doReset">ล้างทั้งหมด</button></div>`);
+    if (a === 'doReset' && can('generate')) { modal(''); try { await store.updateCfg({ epoch: (S.cfg.epoch || 0) + 1 }); toast('กลับไปตารางตั้งต้นแล้ว'); } catch (e) { writeFail(e); } }
+    return;
+  }
+  if (curTab() === 'cal') {
+    const wl = t.closest('.chip[data-lvcode]'); if (wl) { const l = S.lv.get(wl.dataset.lvcode + '|' + wl.dataset.date); if (l && canLeaveFor(l.code)) askCancelLeave(l); else toast(`${wl.dataset.lvcode} ลางานวันนั้น`); return; }
+    const chip = t.closest('.chip[data-code]'); if (chip) { onChip(chip.dataset.code, chip.dataset.date); return; }
+    const day = t.closest('.day[data-day]'); if (day) { onDay(day.dataset.day); return; }
+  }
+});
+document.addEventListener('input', ev => {
+  if (ev.target.id === 'filter') { S.filter = ev.target.value; const pos = ev.target.selectionStart; render(); const f = document.getElementById('filter'); f.focus(); f.setSelectionRange(pos, pos); }
+  if (ev.target.dataset?.ri !== undefined && S.rosterDraft && ev.target.tagName === 'INPUT') { const r = S.rosterDraft[+ev.target.dataset.ri]; if (r) r[ev.target.dataset.f] = ev.target.value; }
+  if (ev.target.dataset?.hf === 'name' && S.draftHol) { const h = S.draftHol[+ev.target.dataset.hi]; if (h) h.name = ev.target.value; }
+});
+document.addEventListener('change', ev => {
+  if (ev.target.id === 'holMonth') { S.holMonth = ev.target.value; render(); document.getElementById('holMonth')?.focus(); }
+  if (ev.target.dataset?.hf === 'date' && S.draftHol) { const h = S.draftHol[+ev.target.dataset.hi]; if (h) { h.date = ev.target.value; render(); } }
+  if (ev.target.id === 'yearSel') { setYear(+ev.target.value); document.getElementById('yearSel')?.focus(); }
+  if (ev.target.id === 'monthSel') { S.month = +ev.target.value; render(); document.getElementById('monthSel')?.focus(); }
+  if (ev.target.id === 'meSel') { askSwitch(ev.target.value); }
+  if (ev.target.dataset?.perm && isOwner()) { const [c, k] = ev.target.dataset.perm.split('|'); if (c === PIN_ADMIN) return; const perms = JSON.parse(JSON.stringify(S.admins?.perms || {})); perms[c] = { ...(perms[c] || {}), [k]: ev.target.checked }; saveAdmins(adminCodes(), perms).then(ok => ok && toast(`${ev.target.checked ? 'ให้' : 'ถอน'}สิทธิ “${PERMS.find(p => p[0] === k)?.[1]}” ของ ${c} แล้ว`)); }
+  if (ev.target.id === 'restoreFile' && ev.target.files[0]) { if (isOwner() && S.adminOk) restoreFile(ev.target.files[0]); ev.target.value = ''; }
+  if (ev.target.id === 'file' && ev.target.files[0]) { importFile(ev.target.files[0]); ev.target.value = ''; }
+  if (ev.target.tagName === 'SELECT' && ev.target.dataset.f === 'batch' && S.rosterDraft) { const r = S.rosterDraft[+ev.target.dataset.ri]; if (r) { r.batch = ev.target.value; r.src = 'manual'; render(); } }
+});
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') { if (document.getElementById('modal').innerHTML) modal(''); else if (S.sel) { S.sel = null; render(); } } });
+// drag & drop
+document.addEventListener('dragstart', ev => { const c = ev.target.closest?.('.chip[data-code]'); if (!c) return; if (!guardWrite() || !isMe(c.dataset.code) || onLeave(c.dataset.code, c.dataset.date) || isLocked(c.dataset.date)) { if (isLocked(c.dataset.date)) toast(LOCK_MSG); ev.preventDefault(); return; } S.sel = {code: c.dataset.code, date: c.dataset.date}; ev.dataTransfer.setData('text/plain', c.dataset.code); ev.dataTransfer.effectAllowed = 'move'; renderBar(); });
+document.addEventListener('dragover', ev => { const d = ev.target.closest?.('.day[data-day]'); if (d && S.sel) { ev.preventDefault(); document.querySelectorAll('.day.drop').forEach(x => x !== d && x.classList.remove('drop')); d.classList.add('drop'); } });
+document.addEventListener('drop', ev => { const d = ev.target.closest?.('.day[data-day]'); if (!d || !S.sel) return; ev.preventDefault(); d.classList.remove('drop'); const c = ev.target.closest('.chip[data-code]'); if (c && c.dataset.date !== S.sel.date) askSwap(S.sel, {code: c.dataset.code, date: c.dataset.date}); else if (d.dataset.day !== S.sel.date) askMove(S.sel, d.dataset.day); });
+document.addEventListener('dragend', () => document.querySelectorAll('.day.drop').forEach(x => x.classList.remove('drop')));
+
+/* ---------- boot ---------- */
+function start() {
+  store.onCfgs(m => { S.cfgs = m || {}; const c = S.cfgs[YEAR]; S.cfg = c ? JSON.parse(JSON.stringify(c)) : null; S.cfgLoaded = true; render(); });
+  store.onChanges(list => { S.changes = list; render(); });
+  store.onLeaves(list => { S.leaves = list; render(); });
+  store.onAdmins(a => { S.admins = a; render(); });
+  store.onPins(m => { S.pins = m || {}; if (S.tab === 'set' || S.tab === 'admin') render(); });
+}
+async function boot() {
+  render();
+  const cfgOk = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId;
+  if (cfgOk && window.firebase) {
+    try {
+      firebase.initializeApp(FIREBASE_CONFIG);
+      const cred = await firebase.auth().signInAnonymously(); // เข้าระบบแบบไม่ระบุตัวตน (ไม่ต้องมีบัญชี)
+      const db = firebase.firestore();
+      try { db.settings({ ignoreUndefinedProperties: true }); } catch {}
+      store = dbStore(db); S.live = true;
+      S.me.id = cred.user?.uid || null;
+    } catch (e) {
+      console.error(e);
+      S.offlineWhy = 'เชื่อมฐานข้อมูลไม่ได้ (' + (e?.code || 'error') + ') · local';
+      toast('เชื่อมต่อ Firebase ไม่ได้: ' + (e?.code || e?.message || 'error') + ' · ตรวจการตั้งค่าตามคู่มือ');
+    }
+  } else if (cfgOk) {
+    S.offlineWhy = 'โหลด Firebase ไม่ได้ · local';
+  } else {
+    S.offlineWhy = 'ยังไม่ได้ตั้งค่า Firebase · โหมดทดลองในเครื่อง';
+  }
+  if (!store) store = localStore();
+  if (!S.me.id) { let cid = lsGet('rota.cid'); if (!cid) { cid = 'local-' + Math.random().toString(36).slice(2, 10); lsSet('rota.cid', cid); } S.me.id = cid; }
+  start();
+}
+boot();
+})();
+</script>
+
+</body></html>
