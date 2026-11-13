@@ -263,7 +263,7 @@ pre.code{background:var(--surface-2);border:1px solid var(--line);border-radius:
 //  ตั้งค่า Firebase: วางค่าจาก Firebase Console > Project settings > Your apps
 //  (ดูคู่มือ ขั้นที่ 4) ถ้าปล่อยว่าง หน้าเว็บจะทำงานแบบทดลองในเครื่องเท่านั้น
 // ======================================================================
-const firebaseConfig = {
+const FIREBASE_CONFIG = {
   apiKey: "AIzaSyC1M9xlUd2bBil8B2DydPf00ay1UXCpkhc",
   authDomain: "office-rota-7f8e1.firebaseapp.com",
   projectId: "office-rota-7f8e1",
@@ -1437,10 +1437,12 @@ function start() {
 }
 async function boot() {
   render();
-  const cfgOk = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId;
+  // รองรับทั้งชื่อ FIREBASE_CONFIG และ firebaseConfig (ชื่อที่ Firebase Console ให้มา) กันวางผิดชื่อแล้วเว็บค้าง
+  const FB_CFG = (typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG) || (typeof firebaseConfig !== 'undefined' && firebaseConfig) || {};
+  const cfgOk = FB_CFG.apiKey && FB_CFG.projectId;
   if (cfgOk && window.firebase) {
     try {
-      firebase.initializeApp(FIREBASE_CONFIG);
+      firebase.initializeApp(FB_CFG);
       const cred = await firebase.auth().signInAnonymously(); // เข้าระบบแบบไม่ระบุตัวตน (ไม่ต้องมีบัญชี)
       const db = firebase.firestore();
       try { db.settings({ ignoreUndefinedProperties: true }); } catch {}
